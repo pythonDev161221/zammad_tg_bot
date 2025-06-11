@@ -15,6 +15,7 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+NGROK_DOMAIN = "https://9697-212-112-106-185.ngrok-free.app"
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -25,8 +26,11 @@ SECRET_KEY = 'django-insecure-=9jgi&hq7$t379tolwe9u8tv260q@7m7ows)t-8^@o2l068th8
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [NGROK_DOMAIN, 'localhost', '127.0.0.1']
 
+TELEGRAM_BOT_TOKEN = "7870471679:AAGjwIireI_j3GLXTBTao2FhGcfKnm0vstc"
+ZAMMAD_URL = "http://192.168.170.129"
+ZAMMAD_API_TOKEN = "SB4xv6g6CVmnbJMtWhDKIQbxL-mbY44wdWXXnQi-yyXi4ac6m6vWF6HaL6NQGjx5"
 
 # Application definition
 
@@ -37,6 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'chatbot'
 ]
 
 MIDDLEWARE = [

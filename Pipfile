@@ -5,6 +5,9 @@ name = "pypi"
 
 [packages]
 django = "*"
+python-telegram-bot = "==13.15"
+requests = "*"
+python-dotenv = "*"
 
 [dev-packages]
 
