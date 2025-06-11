@@ -1,15 +1,14 @@
 import os
 import requests
 import json
-from ..zammad_tg_bot.settings import ZAMMAD_URL, ZAMMAD_API_TOKEN
 
 
 def create_zammad_ticket(title, body, customer_telegram_id, customer_telegram_name):
     """
     Creates a new ticket in Zammad.
     """
-    zammad_url = os.getenv(ZAMMAD_URL)
-    zammad_token = os.getenv(ZAMMAD_API_TOKEN)
+    zammad_url = os.getenv("http://192.168.170.129")
+    zammad_token = os.getenv("SB4xv6g6CVmnbJMtWhDKIQbxL-mbY44wdWXXnQi-yyXi4ac6m6vWF6HaL6NQGjx5")
 
     if not zammad_url or not zammad_token:
         print("Zammad URL or Token not found in environment variables.")

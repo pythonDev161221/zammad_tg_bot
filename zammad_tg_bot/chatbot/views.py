@@ -4,10 +4,9 @@ from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 import telegram
 from . import zammad_api  # Import our zammad api helper
-from ..zammad_tg_bot.settings import TELEGRAM_BOT_TOKEN
 
 # Get the bot token from the .env file
-BOT_TOKEN = os.getenv(TELEGRAM_BOT_TOKEN)
+BOT_TOKEN = os.getenv("7870471679:AAGjwIireI_j3GLXTBTao2FhGcfKnm0vstc")
 bot = telegram.Bot(token=BOT_TOKEN)
 
 

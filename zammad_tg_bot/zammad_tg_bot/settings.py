@@ -28,9 +28,6 @@ DEBUG = True
 
 ALLOWED_HOSTS = [NGROK_DOMAIN, 'localhost', '127.0.0.1']
 
-TELEGRAM_BOT_TOKEN = "7870471679:AAGjwIireI_j3GLXTBTao2FhGcfKnm0vstc"
-ZAMMAD_URL = "http://192.168.170.129"
-ZAMMAD_API_TOKEN = "SB4xv6g6CVmnbJMtWhDKIQbxL-mbY44wdWXXnQi-yyXi4ac6m6vWF6HaL6NQGjx5"
 
 # Application definition
 
