@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.sqlite3
+*.log
+*.pot
+*.pyc
+*.pyo
+*.pyd
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-folder.txt
+
+# Pipenv
+Pipfile.lock
+
+# Django
+*.sqlite3
+db.sqlite3
+media/
+staticfiles/
+
+# VS Code / IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
