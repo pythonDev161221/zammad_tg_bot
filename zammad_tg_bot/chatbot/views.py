@@ -67,9 +67,7 @@ def handle_callback_query(query):
 
         ticket = zammad_api.create_zammad_ticket(
             title=ticket_title,
-            body=ticket_body,
-            customer_telegram_id=user.id,
-            customer_telegram_name=user.first_name
+            body=ticket_body
         )
 
         # 3. Edit the original message to show the result
