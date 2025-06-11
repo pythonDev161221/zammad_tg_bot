@@ -6,7 +6,7 @@ import telegram
 from . import zammad_api  # Import our zammad api helper
 
 # Get the bot token from the .env file
-BOT_TOKEN = os.getenv("7870471679:AAGjwIireI_j3GLXTBTao2FhGcfKnm0vstc")
+BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 bot = telegram.Bot(token=BOT_TOKEN)
 
 
