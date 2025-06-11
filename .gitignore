@@ -14,7 +14,7 @@ pip-log.txt
 pip-delete-this-folder.txt
 
 # Pipenv
-Pipfile.lock
+
 
 # Django
 *.sqlite3
