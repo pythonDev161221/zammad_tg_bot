@@ -3,83 +3,85 @@ import os
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 import telegram
-from . import zammad_api  # Import our zammad api helper
+from . import zammad_api
 
-# Get the bot token from the .env file
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 bot = telegram.Bot(token=BOT_TOKEN)
 
 
-@csrf_exempt  # Important: To allow POST requests from Telegram
+@csrf_exempt
 def telegram_webhook(request):
     if request.method == "POST":
         update_data = json.loads(request.body.decode('utf-8'))
         update = telegram.Update.de_json(update_data, bot)
 
-        # Check if the update is a command message (like /start)
-        if update.message and update.message.text:
+        # We now only need to handle messages, not callback queries
+        if update.message:
             handle_message(update.message)
 
-        # Check if the update is a button press (Callback Query)
-        elif update.callback_query:
-            handle_callback_query(update.callback_query)
-
-    return HttpResponse("ok")  # Acknowledge receipt of the update
+    return HttpResponse("ok")
 
 
 def handle_message(message):
-    """Handles regular text messages."""
+    """Handles all incoming messages."""
     chat_id = message.chat.id
-    text = message.text
+    user = message.from_user
 
-    if text == '/start':
-        # Create a button
+    # --- Scenario 1: User sends the /start command ---
+    if message.text == '/start':
+        # This button replaces the keyboard and asks for the phone number
         keyboard = [
-            [telegram.InlineKeyboardButton("Create New Ticket", callback_data='create_ticket')]
+            [telegram.KeyboardButton("Create Ticket (Share Phone Number)", request_contact=True)]
         ]
-        reply_markup = telegram.InlineKeyboardMarkup(keyboard)
+        # This makes the keyboard appear and then disappear after one use
+        reply_markup = telegram.ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
 
-        # Send the message with the button
         bot.send_message(
             chat_id=chat_id,
-            text="Welcome! Click the button below to create a new support ticket in Zammad.",
+            text="Welcome! To create a ticket, please share your contact information by clicking the button below.",
             reply_markup=reply_markup
         )
 
+    # --- Scenario 2: User shares their contact information ---
+    elif message.contact:
+        phone_number = message.contact.phone_number
+        bot.send_message(chat_id=chat_id,
+                         text=f"Thank you! Creating a ticket with your phone number: {phone_number}. Please wait...")
 
-def handle_callback_query(query):
-    """Handles button presses."""
-    chat_id = query.message.chat.id
-    message_id = query.message.message_id
-    user = query.from_user  # The user who clicked the button
-
-    # Check which button was pressed
-    if query.data == 'create_ticket':
-        # 1. Give instant feedback to the user
-        bot.answer_callback_query(callback_query_id=query.id, text="Creating ticket, please wait...")
-
-        # 2. Create the ticket in Zammad
+        # Create the ticket in Zammad, now with the phone number
         ticket_title = f"New Ticket from {user.first_name}"
-        ticket_body = f"A new ticket was requested by Telegram user: \n" \
-                      f"Name: {user.first_name} {user.last_name or ''}\n" \
-                      f"Username: @{user.username}\n" \
-                      f"User ID: {user.id}"
+        ticket_body = (
+            f"A new ticket was requested by Telegram user: \n"
+            f"Name: {user.first_name} {user.last_name or ''}\n"
+            f"Username: @{user.username}\n"
+            f"User ID: {user.id}\n"
+            f"Phone: {phone_number}"
+        )
 
         ticket = zammad_api.create_zammad_ticket(
             title=ticket_title,
-            body=ticket_body
+            body=ticket_body,
+            customer_telegram_id=user.id,
+            customer_telegram_name=user.first_name,
+            phone_number=phone_number  # Pass the phone number here!
         )
 
-        # 3. Edit the original message to show the result
+
         if ticket and ticket.get('number'):
             ticket_number = ticket.get('number')
             response_text = f"✅ Success! Your ticket has been created.\nTicket Number: **{ticket_number}**"
         else:
             response_text = "❌ Error! Could not create the ticket. Please contact an administrator."
 
-        bot.edit_message_text(
+        bot.send_message(
             chat_id=chat_id,
-            message_id=message_id,
             text=response_text,
             parse_mode=telegram.ParseMode.MARKDOWN
+        )
+        # --- ADD THIS NEW BLOCK ---
+    else:
+        # If the message is not /start, send a help message
+        bot.send_message(
+            chat_id=chat_id,
+            text="I'm sorry, I don't understand that command. Please use /start to create a new ticket."
         )
