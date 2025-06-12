@@ -36,6 +36,35 @@ def handle_message(message):
             reply_markup=reply_markup
         )
 
+
+    elif message.text == '/status':
+
+        try:
+
+            # 1. Check our local database ONLY. No API call.
+
+            open_ticket = OpenTicket.objects.get(telegram_id=user.id)
+
+            # 2. If found, use the information we already have.
+
+            response_text = (
+
+                f"You have an open ticket: **#{open_ticket.zammad_ticket_number}**.\n\n"
+
+                f"An agent will attend to it as soon as possible. "
+
+                f"You will be able to create a new ticket once this one is closed."
+
+            )
+
+
+        except ObjectDoesNotExist:
+
+            # 3. If no ticket is found in our database, inform the user.
+
+            response_text = "You do not have any open tickets. Use /start to create one."
+
+        bot.send_message(chat_id=chat_id, text=response_text, parse_mode=telegram.ParseMode.MARKDOWN)
     # The 'elif' is at the same level as 'if'
     elif message.contact:
         # Everything inside the 'elif' is indented once
@@ -85,6 +114,7 @@ def handle_message(message):
             chat_id=chat_id,
             text="I'm sorry, I don't understand. Please use the /start command to begin."
         )
+
 
 
 @csrf_exempt

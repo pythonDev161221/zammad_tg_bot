@@ -50,3 +50,33 @@ def create_zammad_ticket(title, body):
     except requests.exceptions.RequestException as e:
         print(f"Failed to connect to Zammad for ticket creation: {e}")
         return None
+
+
+def get_ticket_details(ticket_id):
+    """
+    Fetches details for a single ticket from Zammad by its ID.
+    """
+    zammad_url = os.getenv("ZAMMAD_URL")
+    zammad_token = os.getenv("ZAMMAD_TOKEN")
+
+    if not all([zammad_url, zammad_token]):
+        print("Zammad URL or Token not found.")
+        return None
+
+    url = f"{zammad_url}/api/v1/tickets/{ticket_id}"
+    headers = {"Authorization": f"Token token={zammad_token}"}
+
+    try:
+        print(f"Fetching details for Zammad ticket ID: {ticket_id}")
+        response = requests.get(url, headers=headers, timeout=10)
+
+        if response.status_code == 404:
+            print("Ticket not found in Zammad.")
+            return {"error": "not_found"}
+
+        response.raise_for_status()  # Raise an error for other bad responses
+        return response.json()
+
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching ticket details: {e}")
+        return None
