@@ -18,4 +18,4 @@ class OpenTicket(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"User {self.telegram_id} - Ticket #{self.zammad_ticket_number}"
+        return f"Telegram id {self.telegram_id} - Ticket #{self.zammad_ticket_number}"

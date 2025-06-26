@@ -7,6 +7,7 @@ from . import zammad_api
 from .models import OpenTicket  # <-- Add this import at the top
 from django.core.exceptions import ObjectDoesNotExist
 
+
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 bot = telegram.Bot(token=BOT_TOKEN)
 
@@ -18,6 +19,10 @@ def telegram_webhook(request):
         update = telegram.Update.de_json(update_data, bot)
         if update.message:
             handle_message(update.message)
+
+        elif update.callback_query:
+            handle_callback_query(update.callback_query)
+
     return HttpResponse("ok")
 
 
@@ -45,17 +50,30 @@ def handle_message(message):
 
             open_ticket = OpenTicket.objects.get(telegram_id=user.id)
 
+            # --- ADD THE CANCEL BUTTON ---
+            keyboard = [[
+                telegram.InlineKeyboardButton(
+                    "Cancel This Ticket ❌",
+                    callback_data=f"cancel_ticket_{open_ticket.zammad_ticket_id}"
+                )
+            ]]
+            reply_markup = telegram.InlineKeyboardMarkup(keyboard)
+
             # 2. If found, use the information we already have.
-
             response_text = (
-
                 f"You have an open ticket: **#{open_ticket.zammad_ticket_number}**.\n\n"
-
                 f"An agent will attend to it as soon as possible. "
-
-                f"You will be able to create a new ticket once this one is closed."
-
+                f"You can cancel it by clicking the button below."
             )
+
+            bot.send_message(
+                chat_id=chat_id,
+                text=response_text,
+                parse_mode=telegram.ParseMode.MARKDOWN,
+                reply_markup=reply_markup  # Attach the button
+            )
+
+
 
 
         except ObjectDoesNotExist:
@@ -64,7 +82,9 @@ def handle_message(message):
 
             response_text = "You do not have any open tickets. Use /start to create one."
 
-        bot.send_message(chat_id=chat_id, text=response_text, parse_mode=telegram.ParseMode.MARKDOWN)
+            bot.send_message(chat_id=chat_id, text=response_text)
+
+        # bot.send_message(chat_id=chat_id, text=response_text, parse_mode=telegram.ParseMode.MARKDOWN)
     # The 'elif' is at the same level as 'if'
     elif message.contact:
         # Everything inside the 'elif' is indented once
@@ -142,3 +162,32 @@ def zammad_webhook(request):
             print(f"Error processing Zammad webhook: {e}")
 
     return HttpResponse("ok")
+
+
+# --- ADD THIS ENTIRE NEW FUNCTION ---
+def handle_callback_query(query):
+    """Handles all button presses."""
+    user = query.from_user
+    chat_id = query.message.chat.id
+    message_id = query.message.message_id
+
+    # Check if the button pressed is our cancel button
+    if query.data.startswith('cancel_ticket_'):
+        # Give instant feedback to the user
+        bot.answer_callback_query(callback_query_id=query.id, text="Processing your cancellation...")
+
+        # Get the ticket ID from the button's data
+        ticket_id = int(query.data.split('_')[-1])
+
+        # 1. Tell Zammad to close the ticket
+        success = zammad_api.close_zammad_ticket(ticket_id, user.first_name)
+
+        if success:
+            # 2. If Zammad confirmed, delete the ticket from our local database
+            OpenTicket.objects.filter(zammad_ticket_id=ticket_id).delete()
+            response_text = "✅ Your ticket has been successfully canceled."
+        else:
+            response_text = "❌ There was an error canceling your ticket in Zammad. Please contact an administrator."
+
+        # 3. Edit the original message to show the final result
+        bot.edit_message_text(text=response_text, chat_id=chat_id, message_id=message_id)

@@ -18,7 +18,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 load_dotenv(os.path.join(BASE_DIR, '.env'))
 
-NGROK_DOMAIN = "fe8e-212-112-106-185.ngrok-free.app"
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -29,7 +28,10 @@ SECRET_KEY = 'django-insecure-=9jgi&hq7$t379tolwe9u8tv260q@7m7ows)t-8^@o2l068th8
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = [NGROK_DOMAIN, 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['localhost',
+                 '127.0.0.1',
+                 '664e-212-112-106-185.ngrok-free.app',
+                 ]
 
 
 # Application definition
