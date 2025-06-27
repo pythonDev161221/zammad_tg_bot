@@ -23,15 +23,15 @@ load_dotenv(os.path.join(BASE_DIR, '.env'))
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-=9jgi&hq7$t379tolwe9u8tv260q@7m7ows)t-8^@o2l068th8'
-
-# SECURITY WARNING: don't run with debug turned on in production!
-# DEBUG = True
 env = environ.Env(
     # set default values and casting
     DEBUG=(bool, False)
 )
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = env('SECRET_KEY')
+
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = True
 
 PUBLIC_DOMAIN = env('NGROK_DOMAIN', default='localhost')
 
