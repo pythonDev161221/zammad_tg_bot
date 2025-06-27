@@ -2,3 +2,4 @@ Django==5.2.3
 python-telegram-bot==13.15
 requests==2.32.4
 python-dotenv==1.1.0
+django-environ==0.12.0
