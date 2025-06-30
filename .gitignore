@@ -10,6 +10,7 @@ __pycache__/
 env/
 .env
 *.env
+zammad_tg_bot/.env
 
 venv/
 .venv/
