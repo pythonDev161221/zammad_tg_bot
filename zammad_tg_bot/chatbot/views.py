@@ -26,6 +26,7 @@ def telegram_webhook(request):
     return HttpResponse("ok")
 
 
+
 def handle_message(message):
     chat_id = message.chat.id
     user = message.from_user
@@ -86,17 +87,75 @@ def handle_message(message):
 
         # bot.send_message(chat_id=chat_id, text=response_text, parse_mode=telegram.ParseMode.MARKDOWN)
     # The 'elif' is at the same level as 'if'
+    # elif message.contact:
+    #     # Everything inside the 'elif' is indented once
+    #     try:
+    #         existing_ticket = OpenTicket.objects.get(telegram_id=user.id)
+    #         bot.send_message(
+    #             chat_id=chat_id,
+    #             text=f"❌ You already have an open ticket: #{existing_ticket.zammad_ticket_number}. Please wait for an agent to respond."
+    #         )
+    #         return
+    #     except ObjectDoesNotExist:
+    #         pass
+        # --- REPLACE THE OLD try...except BLOCK WITH THIS NEW ONE ---
     elif message.contact:
         # Everything inside the 'elif' is indented once
         try:
-            existing_ticket = OpenTicket.objects.get(telegram_id=user.id)
-            bot.send_message(
-                chat_id=chat_id,
-                text=f"❌ You already have an open ticket: #{existing_ticket.zammad_ticket_number}. Please wait for an agent to respond."
-            )
-            return
+            # 1. Check our local DB first
+            ticket_in_db = OpenTicket.objects.get(telegram_id=user.id)
+
+            # 2. If found, ask Zammad for the real status
+            print(
+                f"User has a tracked ticket. Checking real status of Zammad ticket ID {ticket_in_db.zammad_ticket_id}...")
+            ticket_details = zammad_api.get_ticket_details(ticket_in_db.zammad_ticket_id)
+
+            if ticket_details:
+                # state_obj = ticket_details.get('state', {})
+                # current_state = state_obj.get('name', 'unknown')
+                current_state = ticket_details.get('state', 'unknown')
+
+                # List of states we consider "open"
+                open_states = ['new', 'open', 'pending reminder', 'pending close']
+
+                if current_state.lower() in open_states:
+                    # The ticket is genuinely still open, so we stop the user
+                    bot.send_message(
+                        chat_id=chat_id,
+                        text=f"❌ You already have an open ticket: #{ticket_in_db.zammad_ticket_number}. Please wait for it to be resolved."
+                    )
+                    return  # <-- IMPORTANT: Stop here
+                # else:
+                #     # The ticket is closed in Zammad! Our DB is out of date.
+                #     print(
+                #         f"Ticket #{ticket_in_db.zammad_ticket_number} is '{current_state}' in Zammad. Cleaning up local DB.")
+                #     ticket_in_db.delete()
+                #     # Let the code continue to create a new ticket...
+                    # --- REPLACE IT WITH THIS ---
+                else:
+                    # The ticket is closed in Zammad! Our DB is out of date.
+                    print(
+                        f"Ticket #{ticket_in_db.zammad_ticket_number} is '{current_state}' in Zammad. Cleaning up local DB.")
+                    ticket_in_db.delete()
+                    # Inform the user and STOP.
+                    bot.send_message(
+                        chat_id=chat_id,
+                        text="It looks like your previous ticket was recently closed. Please share your contact again to create a new one."
+                    )
+                    return  # <-- THE CRITICAL MISSING PIECE
+            else:
+                # We couldn't get details from Zammad, it's safer to stop
+                bot.send_message(chat_id=chat_id,
+                                 text="Could not verify status of previous ticket. Please try again in a moment.")
+                return  # <-- IMPORTANT: Stop here
+
         except ObjectDoesNotExist:
+            # User has no open ticket in our DB. We can proceed.
             pass
+
+        # --- THE REST OF YOUR elif message.contact: BLOCK STAYS EXACTLY THE SAME ---
+        phone_number = message.contact.phone_number
+        # ... and so on ...
 
         phone_number = message.contact.phone_number
         bot.send_message(chat_id=chat_id, text=f"Thank you! Creating your ticket. Please wait...")

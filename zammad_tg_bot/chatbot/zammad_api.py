@@ -63,7 +63,8 @@ def get_ticket_details(ticket_id):
         print("Zammad URL or Token not found.")
         return None
 
-    url = f"{zammad_url}/api/v1/tickets/{ticket_id}"
+    # url = f"{zammad_url}/api/v1/tickets/{ticket_id}"
+    url = f"{zammad_url}/api/v1/tickets/{ticket_id}?expand=true"
     headers = {"Authorization": f"Token token={zammad_token}"}
 
     try:
