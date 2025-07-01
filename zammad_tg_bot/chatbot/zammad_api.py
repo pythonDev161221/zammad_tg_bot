@@ -1,3 +1,4 @@
+import base64
 import os
 import requests
 import json
@@ -125,3 +126,306 @@ def close_zammad_ticket(ticket_id, user_name):
     except requests.exceptions.RequestException as e:
         print(f"Error connecting to Zammad to close ticket: {e}")
         return False
+
+
+def add_note_to_ticket(ticket_id, user_name, note_body):
+    """Adds a new text article (note) to an existing Zammad ticket."""
+    zammad_url = os.getenv("ZAMMAD_URL")
+    zammad_token = os.getenv("ZAMMAD_TOKEN")
+
+    if not all([zammad_url, zammad_token]):
+        print("Zammad URL or Token not found.")
+        return False
+
+    url = f"{zammad_url}/api/v1/ticket_articles"
+    headers = {
+        "Authorization": f"Token token={zammad_token}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "ticket_id": ticket_id,
+        "body": f"<b>New message from {user_name} (Telegram):</b><br>{note_body}",
+        "type": "note",
+        "internal": False,
+    }
+
+    try:
+        response = requests.post(url, headers=headers, data=json.dumps(payload), timeout=15)
+        response.raise_for_status()
+        print(f"Successfully added note to ticket ID: {ticket_id}")
+        return True
+    except requests.exceptions.RequestException as e:
+        print(f"Error adding note to ticket: {e}")
+        return False
+
+
+# Add this import at the top of the file
+import base64
+
+
+# ... (other functions are the same) ...
+
+
+# --- REPLACE THE OLD ATTACHMENT FUNCTION WITH THIS NEW BASE64 VERSION ---
+def add_attachment_to_ticket(ticket_id, user_name, file_content, filename):
+    """
+    Adds an attachment to a ticket by updating the ticket itself
+    with a Base64 encoded file payload. This is a more reliable method.
+    """
+    zammad_url = os.getenv("ZAMMAD_URL")
+    zammad_token = os.getenv("ZAMMAD_TOKEN")
+
+    if not all([zammad_url, zammad_token]):
+        print("Zammad URL or Token not found.")
+        return False
+
+    # IMPORTANT: We are now updating the ticket, not creating a new article directly.
+    url = f"{zammad_url}/api/v1/tickets/{ticket_id}"
+    headers = {
+        "Authorization": f"Token token={zammad_token}",
+        "Content-Type": "application/json",
+    }
+
+    # 1. Encode the file content into a Base64 string.
+    # The .decode('utf-8') is crucial to make it a JSON-serializable string.
+    encoded_file = base64.b64encode(file_content).decode('utf-8')
+
+    # 2. Build the JSON payload.
+    payload = {
+        # We are adding a new "article" to the ticket
+        "article": {
+            "subject": "New Attachment from Telegram",
+            "body": f"User {user_name} sent a file.",
+            "internal": False,
+            # This is the special structure for Base64 attachments
+            "attachments": [
+                {
+                    "filename": filename,
+                    "data": encoded_file,
+                    "mime-type": "image/jpeg",  # We can hardcode for photos
+                }
+            ]
+        }
+    }
+
+    try:
+        print(f"Uploading {filename} via Base64 to ticket {ticket_id}...")
+        # IMPORTANT: We use the PUT method to update the ticket
+        response = requests.put(url, headers=headers, data=json.dumps(payload), timeout=90)
+
+        if response.status_code >= 400:
+            print(f"--- ZAMMAD UPLOAD ERROR (Base64) ---")
+            print(f"Status Code: {response.status_code}")
+            print(f"Response Body: {response.text}")
+            print(f"------------------------------------")
+            return False
+
+        print(f"Successfully added Base64 attachment to ticket ID: {ticket_id}")
+        return True
+
+    except requests.exceptions.RequestException as e:
+        print(f"A network-level error occurred adding Base64 attachment: {e}")
+        return False
+
+# def add_attachment_to_ticket(ticket_id, user_name, file_content, filename):
+#     """Adds an attachment to an existing Zammad ticket."""
+#     zammad_url = os.getenv("ZAMMAD_URL")
+#     zammad_token = os.getenv("ZAMMAD_TOKEN")
+#
+#     if not all([zammad_url, zammad_token]):
+#         print("Zammad URL or Token not found.")
+#         return False
+#
+#     url = f"{zammad_url}/api/v1/ticket_articles"
+#     headers = {"Authorization": f"Token token={zammad_token}"}
+#
+#     # --- THE FINAL PAYLOAD STRUCTURE ---
+#     # We will add a 'subject' to make the article more complete.
+#     files_payload = {
+#         'ticket_id': (None, str(ticket_id)),
+#         'subject': (None, 'New Attachment from Telegram'),  # <-- THE NEW, IMPORTANT LINE
+#         'body': (None, f"User {user_name} sent a file: {filename}"),  # Make the body more descriptive
+#         'internal': (None, 'false'),
+#         'attachment': (filename, file_content, 'application/octet-stream')
+#     }
+#
+#     try:
+#         print(f"Uploading {filename} to ticket {ticket_id} with a subject...")
+#         response = requests.post(url, headers=headers, files=files_payload, timeout=90)
+#
+#         if response.status_code >= 400:
+#             print(f"--- ZAMMAD UPLOAD ERROR ---")
+#             print(f"Status Code: {response.status_code}")
+#             print(f"Response Body: {response.text}")
+#             print(f"---------------------------")
+#             return False
+#
+#         print(f"Successfully added attachment to ticket ID: {ticket_id}")
+#         return True
+#
+#     except requests.exceptions.RequestException as e:
+#         print(f"A network-level error occurred adding attachment: {e}")
+#         return False
+
+# def add_attachment_to_ticket(ticket_id, user_name, file_content, filename):
+#     """Adds an attachment to an existing Zammad ticket."""
+#     zammad_url = os.getenv("ZAMMAD_URL")
+#     zammad_token = os.getenv("ZAMMAD_TOKEN")
+#
+#     if not all([zammad_url, zammad_token]):
+#         print("Zammad URL or Token not found.")
+#         return False
+#
+#     url = f"{zammad_url}/api/v1/ticket_articles"
+#     headers = {"Authorization": f"Token token={zammad_token}"}
+#
+#     # --- THE BIG CHANGE IS HERE ---
+#     # We will move all data into the 'files' dictionary.
+#     # The 'requests' library will build the multipart request correctly from this.
+#
+#     # files_payload = {
+#     #     # Text fields are sent as tuples with (None, value)
+#     #     'ticket_id': (None, str(ticket_id)),
+#     #     # 'type': (None, 'note'), # <-- DELETE OR COMMENT OUT THIS LINE
+#     #     'internal': (None, 'false'),
+#     #     'body': (None, f"New attachment from {user_name} (Telegram)."),
+#     #
+#     #     # The actual file data
+#     #     'attachment': (filename, file_content, 'application/octet-stream')
+#     # }
+#
+#     files_payload = {
+#         # Text fields are sent as tuples with (None, value)
+#         'ticket_id': (None, str(ticket_id)),
+#         'internal': (None, 'false'),
+#         'body': (None, f"New attachment from {user_name} (Telegram)."),
+#
+#         # The actual file data is sent with its filename and content type
+#         'attachment': (filename, file_content, 'application/octet-stream')
+#     }
+#
+#     try:
+#         # We now ONLY use the 'files' parameter, not 'data'.
+#         print(f"Uploading {filename} to ticket {ticket_id}...")
+#         response = requests.post(url, headers=headers, files=files_payload, timeout=90)
+#
+#         if response.status_code >= 400:
+#             print(f"--- ZAMMAD UPLOAD ERROR ---")
+#             print(f"Status Code: {response.status_code}")
+#             print(f"Response Body: {response.text}")
+#             print(f"---------------------------")
+#             return False
+#
+#         print(f"Successfully added attachment to ticket ID: {ticket_id}")
+#         return True
+#
+#     except requests.exceptions.RequestException as e:
+#         print(f"A network-level error occurred adding attachment: {e}")
+#         return False
+#
+
+# def add_attachment_to_ticket(ticket_id, user_name, file_content, filename):
+#     """Adds an attachment to an existing Zammad ticket."""
+#     zammad_url = os.getenv("ZAMMAD_URL")
+#     zammad_token = os.getenv("ZAMMAD_TOKEN")
+#
+#     if not all([zammad_url, zammad_token]):
+#         print("Zammad URL or Token not found.")
+#         return False
+#
+#     url = f"{zammad_url}/api/v1/ticket_articles"
+#     # IMPORTANT: We only add the auth token here.
+#     # The 'requests' library will automatically set the 'Content-Type'
+#     # to 'multipart/form-data' when we use the 'files' parameter.
+#     headers = {"Authorization": f"Token token={zammad_token}"}
+#
+#     payload = {
+#         'ticket_id': (None, str(ticket_id)),
+#         'type': (None, 'note'),
+#         'internal': (None, 'false'),
+#         'body': (None, f"New attachment from {user_name} (Telegram)."),
+#     }
+
+    # files = {
+    #     # The filename in the tuple is important for Zammad
+    #     'attachment': (filename, file_content, 'application/octet-stream')
+    # }
+    # files = {
+    #     'attachment': (filename, file_content, 'application/octet-stream')
+    # }
+    #
+    # try:
+    #     # We increase the timeout significantly for file uploads
+    #     print(f"Uploading {filename} to ticket {ticket_id}...")
+    #     response = requests.post(url, headers=headers, data=payload, files=files,
+    #                              timeout=90)  # Increased timeout to 90s
+    #
+    #     # We will manually check the status and print debug info
+    #     if response.status_code >= 400:
+    #         print(f"--- ZAMMAD UPLOAD ERROR ---")
+    #         print(f"Status Code: {response.status_code}")
+    #         print(f"Response Body: {response.text}")
+    #         print(f"---------------------------")
+    #         return False
+    #
+    #     print(f"Successfully added attachment to ticket ID: {ticket_id}")
+    #     return True
+    #
+    # except requests.exceptions.RequestException as e:
+    #     print(f"A network-level error occurred adding attachment: {e}")
+    #     return False
+
+
+# def add_attachment_to_ticket(ticket_id, user_name, file_content, filename):
+#     """Adds an attachment to an existing Zammad ticket."""
+#     zammad_url = os.getenv("ZAMMAD_URL")
+#     zammad_token = os.getenv("ZAMMAD_TOKEN")
+#
+#     if not all([zammad_url, zammad_token]):
+#         print("Zammad URL or Token not found.")
+#         return False
+#
+#     url = f"{zammad_url}/api/v1/ticket_articles"
+#     headers = {"Authorization": f"Token token={zammad_token}"}
+#     payload = {
+#         'ticket_id': str(ticket_id), 'type': 'note', 'internal': 'false',
+#         'body': f"New attachment from {user_name} (Telegram).",
+#     }
+#     files = {'attachments[]': (filename, file_content, 'application/octet-stream')}
+#
+#     try:
+#         response = requests.post(url, headers=headers, data=payload, files=files, timeout=45)
+#         response.raise_for_status()
+#         print(f"Successfully added attachment to ticket ID: {ticket_id}")
+#         return True
+#     except requests.exceptions.RequestException as e:
+#         print(f"Error adding attachment to ticket: {e}")
+#         if e.response: print(f"Zammad Response Body: {e.response.text}")
+#         return False
+#
+#
+# def add_attachment_to_ticket(ticket_id, user_name, file_content, filename):
+#     """Adds an attachment to an existing Zammad ticket."""
+#     zammad_url = os.getenv("ZAMMAD_URL")
+#     zammad_token = os.getenv("ZAMMAD_TOKEN")
+#
+#     if not all([zammad_url, zammad_token]):
+#         print("Zammad URL or Token not found.")
+#         return False
+#
+#     url = f"{zammad_url}/api/v1/ticket_articles"
+#     headers = {"Authorization": f"Token token={zammad_token}"}
+#     payload = {
+#         'ticket_id': str(ticket_id), 'type': 'note', 'internal': 'false',
+#         'body': f"New attachment from {user_name} (Telegram).",
+#     }
+#     files = {'attachments[]': (filename, file_content, 'application/octet-stream')}
+#
+#     try:
+#         response = requests.post(url, headers=headers, data=payload, files=files, timeout=45)
+#         response.raise_for_status()
+#         print(f"Successfully added attachment to ticket ID: {ticket_id}")
+#         return True
+#     except requests.exceptions.RequestException as e:
+#         print(f"Error adding attachment to ticket: {e}")
+#         if e.response: print(f"Zammad Response Body: {e.response.text}")

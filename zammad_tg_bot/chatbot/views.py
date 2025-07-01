@@ -8,6 +8,7 @@ from .models import OpenTicket  # <-- Add this import at the top
 from django.core.exceptions import ObjectDoesNotExist
 
 
+
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 bot = telegram.Bot(token=BOT_TOKEN)
 
@@ -31,6 +32,40 @@ def handle_message(message):
     chat_id = message.chat.id
     user = message.from_user
 
+    # --- TINY CODE ADDITION: START ---
+    # This is the new "gatekeeper" logic.
+    try:
+        open_ticket = OpenTicket.objects.get(telegram_id=user.id)
+
+        # If we found a ticket, we handle the update and then STOP.
+        # We don't want the old logic below to run.
+        success = False
+        if message.text and not message.text.startswith('/'):
+            bot.send_message(chat_id=chat_id, text="Adding your note to the ticket...")
+            success = zammad_api.add_note_to_ticket(
+                open_ticket.zammad_ticket_id, user.first_name, message.text
+            )
+        elif message.photo:
+            bot.send_message(chat_id=chat_id, text="Uploading your photo...")
+            photo_file_id = message.photo[-1].file_id
+            file = bot.get_file(photo_file_id)
+            file_content = file.download_as_bytearray()
+            success = zammad_api.add_attachment_to_ticket(
+                open_ticket.zammad_ticket_id, user.first_name, file_content, f"photo_{photo_file_id}.jpg"
+            )
+
+        if success:
+            bot.send_message(chat_id=chat_id, text="✅ Successfully updated your ticket.")
+        # If the user sends a command like /start or /status, we let it fall through
+        # to the logic below, but if they sent a message or photo, we are done.
+        if message.text and not message.text.startswith('/') or message.photo:
+            return  # This is the crucial stop
+
+    except ObjectDoesNotExist:
+        # User does not have an open ticket, let the original code run.
+        pass
+    # --- TINY CODE ADDITION: END ---
+
     # The 'if' block starts here
     if message.text == '/start':
         # Everything inside the 'if' is indented once
@@ -48,7 +83,6 @@ def handle_message(message):
 
 
     elif message.text == '/status':
-
         try:
 
             # 1. Check our local database ONLY. No API call.
@@ -232,3 +266,62 @@ def handle_callback_query(query):
 
         # 3. Edit the original message to show the final result
         bot.edit_message_text(text=response_text, chat_id=chat_id, message_id=message_id)
+
+# # --- SAFELY ADD THESE TWO FUNCTIONS TO THE END OF zammad_api.py ---
+#
+# def add_note_to_ticket(ticket_id, user_name, note_body):
+#     """Adds a new text article (note) to an existing Zammad ticket."""
+#     zammad_url = os.getenv("ZAMMAD_URL")
+#     zammad_token = os.getenv("ZAMMAD_TOKEN")
+#
+#     if not all([zammad_url, zammad_token]):
+#         print("Zammad URL or Token not found.")
+#         return False
+#
+#     url = f"{zammad_url}/api/v1/ticket_articles"
+#     headers = {
+#         "Authorization": f"Token token={zammad_token}",
+#         "Content-Type": "application/json",
+#     }
+#     payload = {
+#         "ticket_id": ticket_id,
+#         "body": f"<b>New message from {user_name} (Telegram):</b><br>{note_body}",
+#         "type": "note",
+#         "internal": False,
+#     }
+#
+#     try:
+#         response = requests.post(url, headers=headers, data=json.dumps(payload), timeout=15)
+#         response.raise_for_status()
+#         print(f"Successfully added note to ticket ID: {ticket_id}")
+#         return True
+#     except requests.exceptions.RequestException as e:
+#         print(f"Error adding note to ticket: {e}")
+#         return False
+
+# def add_attachment_to_ticket(ticket_id, user_name, file_content, filename):
+#     """Adds an attachment to an existing Zammad ticket."""
+#     zammad_url = os.getenv("ZAMMAD_URL")
+#     zammad_token = os.getenv("ZAMMAD_TOKEN")
+#
+#     if not all([zammad_url, zammad_token]):
+#         print("Zammad URL or Token not found.")
+#         return False
+#
+#     url = f"{zammad_url}/api/v1/ticket_articles"
+#     headers = {"Authorization": f"Token token={zammad_token}"}
+#     payload = {
+#         'ticket_id': str(ticket_id), 'type': 'note', 'internal': 'false',
+#         'body': f"New attachment from {user_name} (Telegram).",
+#     }
+#     files = {'attachments[]': (filename, file_content, 'application/octet-stream')}
+#
+#     try:
+#         response = requests.post(url, headers=headers, data=payload, files=files, timeout=45)
+#         response.raise_for_status()
+#         print(f"Successfully added attachment to ticket ID: {ticket_id}")
+#         return True
+#     except requests.exceptions.RequestException as e:
+#         print(f"Error adding attachment to ticket: {e}")
+#         if e.response: print(f"Zammad Response Body: {e.response.text}")
+#         return False
