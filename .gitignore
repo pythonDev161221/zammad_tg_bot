@@ -7,10 +7,9 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-env/
-.env
-*.env
 zammad_tg_bot/.env
+zammad_tg_bot/.env*
+*.env
 
 venv/
 .venv/
