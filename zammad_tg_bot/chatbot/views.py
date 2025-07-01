@@ -34,7 +34,11 @@ def handle_message(message):
     # The 'if' block starts here
     if message.text == '/start':
         # Everything inside the 'if' is indented once
-        keyboard = [[telegram.KeyboardButton("Create Ticket (Share Phone Number)", request_contact=True)]]
+        # keyboard = [[telegram.KeyboardButton("Create Ticket (Share Phone Number)", request_contact=True)]]
+        keyboard = [
+            [telegram.KeyboardButton("Create New Ticket 📝", request_contact=True)],  # Button to create a ticket
+            [telegram.KeyboardButton("/status")]  # Button that sends the text "/status"
+        ]
         reply_markup = telegram.ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
         bot.send_message(
             chat_id=chat_id,
@@ -85,20 +89,7 @@ def handle_message(message):
 
             bot.send_message(chat_id=chat_id, text=response_text)
 
-        # bot.send_message(chat_id=chat_id, text=response_text, parse_mode=telegram.ParseMode.MARKDOWN)
-    # The 'elif' is at the same level as 'if'
-    # elif message.contact:
-    #     # Everything inside the 'elif' is indented once
-    #     try:
-    #         existing_ticket = OpenTicket.objects.get(telegram_id=user.id)
-    #         bot.send_message(
-    #             chat_id=chat_id,
-    #             text=f"❌ You already have an open ticket: #{existing_ticket.zammad_ticket_number}. Please wait for an agent to respond."
-    #         )
-    #         return
-    #     except ObjectDoesNotExist:
-    #         pass
-        # --- REPLACE THE OLD try...except BLOCK WITH THIS NEW ONE ---
+
     elif message.contact:
         # Everything inside the 'elif' is indented once
         try:
@@ -111,8 +102,6 @@ def handle_message(message):
             ticket_details = zammad_api.get_ticket_details(ticket_in_db.zammad_ticket_id)
 
             if ticket_details:
-                # state_obj = ticket_details.get('state', {})
-                # current_state = state_obj.get('name', 'unknown')
                 current_state = ticket_details.get('state', 'unknown')
 
                 # List of states we consider "open"
@@ -124,14 +113,7 @@ def handle_message(message):
                         chat_id=chat_id,
                         text=f"❌ You already have an open ticket: #{ticket_in_db.zammad_ticket_number}. Please wait for it to be resolved."
                     )
-                    return  # <-- IMPORTANT: Stop here
-                # else:
-                #     # The ticket is closed in Zammad! Our DB is out of date.
-                #     print(
-                #         f"Ticket #{ticket_in_db.zammad_ticket_number} is '{current_state}' in Zammad. Cleaning up local DB.")
-                #     ticket_in_db.delete()
-                #     # Let the code continue to create a new ticket...
-                    # --- REPLACE IT WITH THIS ---
+                    return
                 else:
                     # The ticket is closed in Zammad! Our DB is out of date.
                     print(
@@ -142,7 +124,7 @@ def handle_message(message):
                         chat_id=chat_id,
                         text="It looks like your previous ticket was recently closed. Please share your contact again to create a new one."
                     )
-                    return  # <-- THE CRITICAL MISSING PIECE
+                    return
             else:
                 # We couldn't get details from Zammad, it's safer to stop
                 bot.send_message(chat_id=chat_id,
