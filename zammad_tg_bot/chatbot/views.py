@@ -27,26 +27,41 @@ def telegram_webhook(request):
     return HttpResponse("ok")
 
 
+# --- Constants (Good Practice) ---
+# Define Zammad open states in one place for easy maintenance.
+ZAMMAD_OPEN_STATES = ['new', 'open', 'pending reminder', 'pending close']
 
-def handle_message(message):
-    chat_id = message.chat.id
-    user = message.from_user
 
-    # --- TINY CODE ADDITION: START ---
-    # This is the new "gatekeeper" logic.
+# --- Helper Functions (Each does one specific job) ---
+
+def _handle_open_ticket_update(bot, message, user):
+    """
+    Checks if the user has an open ticket. If so, handles their message
+    as an update (note or photo) to that ticket.
+
+    Returns:
+        bool: True if the message was handled, False otherwise.
+    """
     try:
         open_ticket = OpenTicket.objects.get(telegram_id=user.id)
 
-        # If we found a ticket, we handle the update and then STOP.
-        # We don't want the old logic below to run.
+        # Determine if this message is an update (text or photo)
+        is_text_update = message.text and not message.text.startswith('/')
+        is_photo_update = bool(message.photo)
+
+        if not (is_text_update or is_photo_update):
+            # It's a command or something else, let the main handler deal with it.
+            return False
+
+        # --- Handle the update ---
         success = False
-        if message.text and not message.text.startswith('/'):
-            bot.send_message(chat_id=chat_id, text="Adding your note to the ticket...")
+        if is_text_update:
+            bot.send_message(chat_id=message.chat.id, text="Adding your note to the ticket...")
             success = zammad_api.add_note_to_ticket(
                 open_ticket.zammad_ticket_id, user.first_name, message.text
             )
-        elif message.photo:
-            bot.send_message(chat_id=chat_id, text="Uploading your photo...")
+        elif is_photo_update:
+            bot.send_message(chat_id=message.chat.id, text="Uploading your photo...")
             photo_file_id = message.photo[-1].file_id
             file = bot.get_file(photo_file_id)
             file_content = file.download_as_bytearray()
@@ -55,162 +70,329 @@ def handle_message(message):
             )
 
         if success:
-            bot.send_message(chat_id=chat_id, text="✅ Successfully updated your ticket.")
-        # If the user sends a command like /start or /status, we let it fall through
-        # to the logic below, but if they sent a message or photo, we are done.
-        if message.text and not message.text.startswith('/') or message.photo:
-            return  # This is the crucial stop
+            bot.send_message(chat_id=message.chat.id, text="✅ Successfully updated your ticket.")
+        else:
+            # Let the user know if the update failed.
+            bot.send_message(chat_id=message.chat.id, text="❌ Sorry, there was an error updating your ticket.")
+
+        return True  # Crucially, we signal that the message was handled.
 
     except ObjectDoesNotExist:
-        # User does not have an open ticket, let the original code run.
-        pass
-    # --- TINY CODE ADDITION: END ---
+        # User does not have an open ticket, so this handler has nothing to do.
+        return False
 
-    # The 'if' block starts here
-    if message.text == '/start':
-        # Everything inside the 'if' is indented once
-        # keyboard = [[telegram.KeyboardButton("Create Ticket (Share Phone Number)", request_contact=True)]]
-        keyboard = [
-            [telegram.KeyboardButton("Create New Ticket 📝", request_contact=True)],  # Button to create a ticket
-            [telegram.KeyboardButton("/status")]  # Button that sends the text "/status"
-        ]
-        reply_markup = telegram.ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+
+def _handle_start_command(bot, message):
+    """Handles the /start command, showing a welcome message and keyboard."""
+    keyboard = [
+        [telegram.KeyboardButton("Create New Ticket 📝", request_contact=True)],
+        [telegram.KeyboardButton("/status")]
+    ]
+    reply_markup = telegram.ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+    bot.send_message(
+        chat_id=message.chat.id,
+        text="Welcome! To create a ticket, please share your contact information by clicking the button below.",
+        reply_markup=reply_markup
+    )
+
+
+def _handle_status_command(bot, message, user):
+    """Handles the /status command, showing the user's open ticket or lack thereof."""
+    try:
+        open_ticket = OpenTicket.objects.get(telegram_id=user.id)
+        keyboard = [[
+            telegram.InlineKeyboardButton(
+                "Cancel This Ticket ❌",
+                callback_data=f"cancel_ticket_{open_ticket.zammad_ticket_id}"
+            )
+        ]]
+        reply_markup = telegram.InlineKeyboardMarkup(keyboard)
+        response_text = (
+            f"You have an open ticket: **#{open_ticket.zammad_ticket_number}**.\n\n"
+            f"An agent will attend to it as soon as possible. You can add notes or photos "
+            f"by sending them directly to this chat. You can also cancel it below."
+        )
         bot.send_message(
-            chat_id=chat_id,
-            text="Welcome! To create a ticket, please share your contact information by clicking the button below.",
+            chat_id=message.chat.id,
+            text=response_text,
+            parse_mode=telegram.ParseMode.MARKDOWN,
             reply_markup=reply_markup
         )
+    except ObjectDoesNotExist:
+        response_text = "You do not have any open tickets. Use /start to create one."
+        bot.send_message(chat_id=message.chat.id, text=response_text)
 
 
-    elif message.text == '/status':
-        try:
+def _handle_contact_message(bot, message, user):
+    """Handles a shared contact to create a new Zammad ticket."""
+    chat_id = message.chat.id
 
-            # 1. Check our local database ONLY. No API call.
+    # 1. Prevent creating a new ticket if one is already open
+    try:
+        ticket_in_db = OpenTicket.objects.get(telegram_id=user.id)
+        ticket_details = zammad_api.get_ticket_details(ticket_in_db.zammad_ticket_id)
 
-            open_ticket = OpenTicket.objects.get(telegram_id=user.id)
-
-            # --- ADD THE CANCEL BUTTON ---
-            keyboard = [[
-                telegram.InlineKeyboardButton(
-                    "Cancel This Ticket ❌",
-                    callback_data=f"cancel_ticket_{open_ticket.zammad_ticket_id}"
-                )
-            ]]
-            reply_markup = telegram.InlineKeyboardMarkup(keyboard)
-
-            # 2. If found, use the information we already have.
-            response_text = (
-                f"You have an open ticket: **#{open_ticket.zammad_ticket_number}**.\n\n"
-                f"An agent will attend to it as soon as possible. "
-                f"You can cancel it by clicking the button below."
-            )
-
+        if ticket_details and ticket_details.get('state', 'unknown').lower() in ZAMMAD_OPEN_STATES:
             bot.send_message(
                 chat_id=chat_id,
-                text=response_text,
-                parse_mode=telegram.ParseMode.MARKDOWN,
-                reply_markup=reply_markup  # Attach the button
+                text=f"❌ You already have an open ticket: #{ticket_in_db.zammad_ticket_number}. Please wait for it to be resolved."
             )
-
-
-
-
-        except ObjectDoesNotExist:
-
-            # 3. If no ticket is found in our database, inform the user.
-
-            response_text = "You do not have any open tickets. Use /start to create one."
-
-            bot.send_message(chat_id=chat_id, text=response_text)
-
-
-    elif message.contact:
-        # Everything inside the 'elif' is indented once
-        try:
-            # 1. Check our local DB first
-            ticket_in_db = OpenTicket.objects.get(telegram_id=user.id)
-
-            # 2. If found, ask Zammad for the real status
-            print(
-                f"User has a tracked ticket. Checking real status of Zammad ticket ID {ticket_in_db.zammad_ticket_id}...")
-            ticket_details = zammad_api.get_ticket_details(ticket_in_db.zammad_ticket_id)
-
-            if ticket_details:
-                current_state = ticket_details.get('state', 'unknown')
-
-                # List of states we consider "open"
-                open_states = ['new', 'open', 'pending reminder', 'pending close']
-
-                if current_state.lower() in open_states:
-                    # The ticket is genuinely still open, so we stop the user
-                    bot.send_message(
-                        chat_id=chat_id,
-                        text=f"❌ You already have an open ticket: #{ticket_in_db.zammad_ticket_number}. Please wait for it to be resolved."
-                    )
-                    return
-                else:
-                    # The ticket is closed in Zammad! Our DB is out of date.
-                    print(
-                        f"Ticket #{ticket_in_db.zammad_ticket_number} is '{current_state}' in Zammad. Cleaning up local DB.")
-                    ticket_in_db.delete()
-                    # Inform the user and STOP.
-                    bot.send_message(
-                        chat_id=chat_id,
-                        text="It looks like your previous ticket was recently closed. Please share your contact again to create a new one."
-                    )
-                    return
-            else:
-                # We couldn't get details from Zammad, it's safer to stop
-                bot.send_message(chat_id=chat_id,
-                                 text="Could not verify status of previous ticket. Please try again in a moment.")
-                return  # <-- IMPORTANT: Stop here
-
-        except ObjectDoesNotExist:
-            # User has no open ticket in our DB. We can proceed.
-            pass
-
-        # --- THE REST OF YOUR elif message.contact: BLOCK STAYS EXACTLY THE SAME ---
-        phone_number = message.contact.phone_number
-        # ... and so on ...
-
-        phone_number = message.contact.phone_number
-        bot.send_message(chat_id=chat_id, text=f"Thank you! Creating your ticket. Please wait...")
-
-        ticket_title = f"New Ticket from Telegram User: {user.first_name}"
-        ticket_body = (
-            f"A new ticket was requested by Telegram user:\n\n"
-            f"**Name:** {user.first_name} {user.last_name or ''}\n"
-            f"**Username:** @{user.username}\n"
-            f"**Telegram User ID:** {user.id}\n"
-            f"**Phone Number:** {phone_number}"
-        )
-
-        ticket_data = zammad_api.create_zammad_ticket(
-            title=ticket_title,
-            body=ticket_body
-        )
-
-        if ticket_data and ticket_data.get('id'):
-            OpenTicket.objects.create(
-                telegram_id=user.id,
-                zammad_ticket_id=ticket_data.get('id'),
-                zammad_ticket_number=ticket_data.get('number')
-            )
-            response_text = f"✅ Success! Your ticket has been created.\nTicket Number: **{ticket_data.get('number')}**"
+            return
         else:
-            response_text = "❌ Error! Could not create the ticket. Please check the server logs."
+            # The ticket is closed or invalid in Zammad, so clean up our local DB.
+            print(f"Stale ticket #{ticket_in_db.zammad_ticket_number} found. Cleaning up local DB.")
+            ticket_in_db.delete()
+    except ObjectDoesNotExist:
+        # No ticket in our DB, we can proceed.
+        pass
 
-        bot.send_message(chat_id=chat_id, text=response_text, parse_mode=telegram.ParseMode.MARKDOWN)
+    # 2. Create the new ticket
+    phone_number = message.contact.phone_number
+    bot.send_message(chat_id=chat_id, text=f"Thank you! Creating your ticket. Please wait...")
 
-    # The 'else' is at the same level as 'if' and 'elif'
-    else:
-        # Everything inside the 'else' is indented once
-        bot.send_message(
-            chat_id=chat_id,
-            text="I'm sorry, I don't understand. Please use the /start command to begin."
+    ticket_title = f"New Ticket from Telegram User: {user.first_name}"
+    ticket_body = (
+        f"A new ticket was requested by Telegram user:\n\n"
+        f"**Name:** {user.first_name} {user.last_name or ''}\n"
+        f"**Username:** @{user.username}\n"
+        f"**Telegram User ID:** {user.id}\n"
+        f"**Phone Number:** {phone_number}"
+    )
+
+    ticket_data = zammad_api.create_zammad_ticket(title=ticket_title, body=ticket_body)
+
+    if ticket_data and ticket_data.get('id'):
+        OpenTicket.objects.create(
+            telegram_id=user.id,
+            zammad_ticket_id=ticket_data.get('id'),
+            zammad_ticket_number=ticket_data.get('number')
         )
+        response_text = f"✅ Success! Your ticket has been created.\nTicket Number: **{ticket_data.get('number')}**"
+    else:
+        response_text = "❌ Error! Could not create the ticket. Please check the server logs."
+
+    bot.send_message(chat_id=chat_id, text=response_text, parse_mode=telegram.ParseMode.MARKDOWN)
 
 
+# --- Main Dispatcher Function ---
+
+def handle_message(message):
+    """
+    The main message handler. It acts as a dispatcher, routing the message
+    to the appropriate helper function based on its content.
+    """
+    user = message.from_user
+
+    # PRIORITY 1: Check if this is an update to an existing ticket.
+    # The helper returns True if it handled the message, so we can stop.
+    if _handle_open_ticket_update(bot, message, user):
+        return
+
+    # PRIORITY 2: Handle specific commands and message types.
+    if message.text:
+        if message.text == '/start':
+            _handle_start_command(bot, message)
+        elif message.text == '/status':
+            _handle_status_command(bot, message, user)
+        else:
+            # This is text that isn't a command and the user has no open ticket.
+            bot.send_message(
+                chat_id=message.chat.id,
+                text="I'm sorry, I don't understand. Please use /start to create a ticket."
+            )
+    elif message.contact:
+        _handle_contact_message(bot, message, user)
+    else:
+        # This catches anything else (photos, stickers, etc.) when the user
+        # does NOT have an open ticket.
+        bot.send_message(
+            chat_id=message.chat.id,
+            text="I'm sorry, I don't understand. Please use /start to create a ticket."
+        )
+############################
+# def handle_message(message):
+#     chat_id = message.chat.id
+#     user = message.from_user
+#
+#     # --- TINY CODE ADDITION: START ---
+#     # This is the new "gatekeeper" logic.
+#     try:
+#         open_ticket = OpenTicket.objects.get(telegram_id=user.id)
+#
+#         # If we found a ticket, we handle the update and then STOP.
+#         # We don't want the old logic below to run.
+#         success = False
+#         if message.text and not message.text.startswith('/'):
+#             bot.send_message(chat_id=chat_id, text="Adding your note to the ticket...")
+#             success = zammad_api.add_note_to_ticket(
+#                 open_ticket.zammad_ticket_id, user.first_name, message.text
+#             )
+#         elif message.photo:
+#             bot.send_message(chat_id=chat_id, text="Uploading your photo...")
+#             photo_file_id = message.photo[-1].file_id
+#             file = bot.get_file(photo_file_id)
+#             file_content = file.download_as_bytearray()
+#             success = zammad_api.add_attachment_to_ticket(
+#                 open_ticket.zammad_ticket_id, user.first_name, file_content, f"photo_{photo_file_id}.jpg"
+#             )
+#
+#         if success:
+#             bot.send_message(chat_id=chat_id, text="✅ Successfully updated your ticket.")
+#         # If the user sends a command like /start or /status, we let it fall through
+#         # to the logic below, but if they sent a message or photo, we are done.
+#         if message.text and not message.text.startswith('/') or message.photo:
+#             return  # This is the crucial stop
+#
+#     except ObjectDoesNotExist:
+#         # User does not have an open ticket, let the original code run.
+#         pass
+#     # --- TINY CODE ADDITION: END ---
+#
+#     # The 'if' block starts here
+#     if message.text == '/start':
+#         # Everything inside the 'if' is indented once
+#         # keyboard = [[telegram.KeyboardButton("Create Ticket (Share Phone Number)", request_contact=True)]]
+#         keyboard = [
+#             [telegram.KeyboardButton("Create New Ticket 📝", request_contact=True)],  # Button to create a ticket
+#             [telegram.KeyboardButton("/status")]  # Button that sends the text "/status"
+#         ]
+#         reply_markup = telegram.ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+#         bot.send_message(
+#             chat_id=chat_id,
+#             text="Welcome! To create a ticket, please share your contact information by clicking the button below.",
+#             reply_markup=reply_markup
+#         )
+#
+#
+#     elif message.text == '/status':
+#         try:
+#
+#             # 1. Check our local database ONLY. No API call.
+#
+#             open_ticket = OpenTicket.objects.get(telegram_id=user.id)
+#
+#             # --- ADD THE CANCEL BUTTON ---
+#             keyboard = [[
+#                 telegram.InlineKeyboardButton(
+#                     "Cancel This Ticket ❌",
+#                     callback_data=f"cancel_ticket_{open_ticket.zammad_ticket_id}"
+#                 )
+#             ]]
+#             reply_markup = telegram.InlineKeyboardMarkup(keyboard)
+#
+#             # 2. If found, use the information we already have.
+#             response_text = (
+#                 f"You have an open ticket: **#{open_ticket.zammad_ticket_number}**.\n\n"
+#                 f"An agent will attend to it as soon as possible. "
+#                 f"You can cancel it by clicking the button below."
+#             )
+#
+#             bot.send_message(
+#                 chat_id=chat_id,
+#                 text=response_text,
+#                 parse_mode=telegram.ParseMode.MARKDOWN,
+#                 reply_markup=reply_markup  # Attach the button
+#             )
+#
+#
+#
+#
+#         except ObjectDoesNotExist:
+#
+#             # 3. If no ticket is found in our database, inform the user.
+#
+#             response_text = "You do not have any open tickets. Use /start to create one."
+#
+#             bot.send_message(chat_id=chat_id, text=response_text)
+#
+#
+#     elif message.contact:
+#         # Everything inside the 'elif' is indented once
+#         try:
+#             # 1. Check our local DB first
+#             ticket_in_db = OpenTicket.objects.get(telegram_id=user.id)
+#
+#             # 2. If found, ask Zammad for the real status
+#             print(
+#                 f"User has a tracked ticket. Checking real status of Zammad ticket ID {ticket_in_db.zammad_ticket_id}...")
+#             ticket_details = zammad_api.get_ticket_details(ticket_in_db.zammad_ticket_id)
+#
+#             if ticket_details:
+#                 current_state = ticket_details.get('state', 'unknown')
+#
+#                 # List of states we consider "open"
+#                 open_states = ['new', 'open', 'pending reminder', 'pending close']
+#
+#                 if current_state.lower() in open_states:
+#                     # The ticket is genuinely still open, so we stop the user
+#                     bot.send_message(
+#                         chat_id=chat_id,
+#                         text=f"❌ You already have an open ticket: #{ticket_in_db.zammad_ticket_number}. Please wait for it to be resolved."
+#                     )
+#                     return
+#                 else:
+#                     # The ticket is closed in Zammad! Our DB is out of date.
+#                     print(
+#                         f"Ticket #{ticket_in_db.zammad_ticket_number} is '{current_state}' in Zammad. Cleaning up local DB.")
+#                     ticket_in_db.delete()
+#                     # Inform the user and STOP.
+#                     bot.send_message(
+#                         chat_id=chat_id,
+#                         text="It looks like your previous ticket was recently closed. Please share your contact again to create a new one."
+#                     )
+#                     return
+#             else:
+#                 # We couldn't get details from Zammad, it's safer to stop
+#                 bot.send_message(chat_id=chat_id,
+#                                  text="Could not verify status of previous ticket. Please try again in a moment.")
+#                 return  # <-- IMPORTANT: Stop here
+#
+#         except ObjectDoesNotExist:
+#             # User has no open ticket in our DB. We can proceed.
+#             pass
+#
+#         # --- THE REST OF YOUR elif message.contact: BLOCK STAYS EXACTLY THE SAME ---
+#         phone_number = message.contact.phone_number
+#         # ... and so on ...
+#
+#         phone_number = message.contact.phone_number
+#         bot.send_message(chat_id=chat_id, text=f"Thank you! Creating your ticket. Please wait...")
+#
+#         ticket_title = f"New Ticket from Telegram User: {user.first_name}"
+#         ticket_body = (
+#             f"A new ticket was requested by Telegram user:\n\n"
+#             f"**Name:** {user.first_name} {user.last_name or ''}\n"
+#             f"**Username:** @{user.username}\n"
+#             f"**Telegram User ID:** {user.id}\n"
+#             f"**Phone Number:** {phone_number}"
+#         )
+#
+#         ticket_data = zammad_api.create_zammad_ticket(
+#             title=ticket_title,
+#             body=ticket_body
+#         )
+#
+#         if ticket_data and ticket_data.get('id'):
+#             OpenTicket.objects.create(
+#                 telegram_id=user.id,
+#                 zammad_ticket_id=ticket_data.get('id'),
+#                 zammad_ticket_number=ticket_data.get('number')
+#             )
+#             response_text = f"✅ Success! Your ticket has been created.\nTicket Number: **{ticket_data.get('number')}**"
+#         else:
+#             response_text = "❌ Error! Could not create the ticket. Please check the server logs."
+#
+#         bot.send_message(chat_id=chat_id, text=response_text, parse_mode=telegram.ParseMode.MARKDOWN)
+#
+#     # The 'else' is at the same level as 'if' and 'elif'
+#     else:
+#         # Everything inside the 'else' is indented once
+#         bot.send_message(
+#             chat_id=chat_id,
+#             text="I'm sorry, I don't understand. Please use the /start command to begin."
+#         )
+#
+####################
 
 @csrf_exempt
 def zammad_webhook(request):
