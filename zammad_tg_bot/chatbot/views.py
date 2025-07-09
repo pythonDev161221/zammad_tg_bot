@@ -234,11 +234,6 @@ def handle_message(message):
 def zammad_webhook(request):
     if request.method == "POST":
         try:
-            print("=== ZAMMAD WEBHOOK RECEIVED ===")
-            print(f"Request method: {request.method}")
-            print(f"Request body: {request.body.decode('utf-8')}")
-            print("=============================")
-            
             # Handle both JSON and form-encoded data
             if request.content_type == 'application/json':
                 payload = json.loads(request.body)
@@ -247,8 +242,6 @@ def zammad_webhook(request):
                 payload = dict(request.POST)
                 # Convert lists to single values
                 payload = {k: v[0] if isinstance(v, list) and len(v) == 1 else v for k, v in payload.items()}
-            
-            print(f"Parsed payload: {payload}")
             
             # Try to extract ticket and article info from different payload formats
             if 'ticket' in payload and 'article' in payload:
@@ -270,41 +263,20 @@ def zammad_webhook(request):
                 }
                 ticket_info = {'id': ticket_id, 'state': ticket_state}
 
-            print(f"Extracted info:")
-            print(f"  - Ticket ID: {ticket_id}")
-            print(f"  - Ticket State: {ticket_state}")
-            print(f"  - Article present: {bool(article_info and article_info.get('body'))}")
-            
-            if article_info and article_info.get('body'):
-                print(f"  - Article type: {article_info.get('type')}")
-                print(f"  - Article sender: {article_info.get('sender')}")
-                print(f"  - Article internal: {article_info.get('internal')}")
-                print(f"  - Article body: {article_info.get('body', '')[:100]}...")
-
             # Handle new article (agent response)
             if article_info and article_info.get('body'):
                 article_type = article_info.get('type')
                 article_sender = article_info.get('sender')
                 article_internal = str(article_info.get('internal', '')).lower() in ['true', '1', 'yes']
                 
-                print(f"Checking article conditions:")
-                print(f"  - Type in ['web', 'email', 'phone', 'note']: {article_type in ['web', 'email', 'phone', 'note']}")
-                print(f"  - Sender != 'Customer': {article_sender != 'Customer'}")
-                print(f"  - Not internal: {not article_internal}")
-                
                 if article_type in ['web', 'email', 'phone', 'note'] and article_sender != 'Customer' and not article_internal:
-                    print(f"CONDITIONS MET - Processing agent response for ticket {ticket_id}")
                     _handle_agent_response(ticket_id, article_info)
-                else:
-                    print(f"CONDITIONS NOT MET - Skipping agent response")
 
             # Check if the ticket's new state is 'closed'
             if ticket_id and ticket_state == 'closed':
-                print(f"Ticket {ticket_id} is being closed")
                 # Find the ticket in our local DB and delete it
                 try:
                     ticket_to_close = OpenTicket.objects.get(zammad_ticket_id=ticket_id)
-                    print(f"Closing tracked ticket for user {ticket_to_close.telegram_id}")
                     # Send closing message to Telegram user
                     bot.send_message(
                         chat_id=ticket_to_close.telegram_id,
@@ -312,67 +284,41 @@ def zammad_webhook(request):
                     )
                     ticket_to_close.delete()
                 except ObjectDoesNotExist:
-                    print(f"Received close event for untracked ticket {ticket_id}")
+                    pass
 
         except Exception as e:
             print(f"Error processing Zammad webhook: {e}")
-            import traceback
-            traceback.print_exc()
 
     return HttpResponse("ok")
 
-
-@csrf_exempt
-def test_endpoint(request):
-    """Simple test endpoint to verify connectivity"""
-    print("=== TEST ENDPOINT CALLED ===")
-    print(f"Method: {request.method}")
-    print(f"Headers: {dict(request.headers)}")
-    print(f"Body: {request.body.decode('utf-8')}")
-    print(f"GET params: {dict(request.GET)}")
-    print(f"POST params: {dict(request.POST)}")
-    print("===========================")
-    return HttpResponse("Test endpoint working!")
 
 
 def _handle_agent_response(ticket_id, article_info):
     """Send agent response from Zammad to Telegram user"""
     try:
-        print(f"=== HANDLING AGENT RESPONSE ===")
-        print(f"Ticket ID: {ticket_id}")
-        
         # Find the ticket in our local DB
         open_ticket = OpenTicket.objects.get(zammad_ticket_id=ticket_id)
-        print(f"Found ticket in DB for Telegram user: {open_ticket.telegram_id}")
         
         # Get agent response body and clean HTML
         response_body = article_info.get('body', '')
-        print(f"Original response body: {response_body}")
         
         # Simple HTML cleanup - remove HTML tags
         import re
         clean_text = re.sub(r'<[^>]+>', '', response_body)
         clean_text = clean_text.strip()
-        print(f"Cleaned text: {clean_text}")
         
         if clean_text:
-            print(f"Sending message to Telegram user {open_ticket.telegram_id}")
             # Send agent response to Telegram user
             bot.send_message(
                 chat_id=open_ticket.telegram_id,
                 text=f"💬 **Support Agent Response:**\n\n{clean_text}",
                 parse_mode=telegram.ParseMode.MARKDOWN
             )
-            print(f"✅ Successfully sent agent response to Telegram user {open_ticket.telegram_id}")
-        else:
-            print(f"❌ No clean text to send - skipping")
         
     except ObjectDoesNotExist:
-        print(f"❌ Received agent response for untracked ticket {ticket_id}")
+        pass
     except Exception as e:
-        print(f"❌ Error sending agent response to Telegram: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"Error sending agent response to Telegram: {e}")
 
 
 # --- ADD THIS ENTIRE NEW FUNCTION ---
