@@ -199,7 +199,6 @@ def handle_message(message):
     The main message handler. It acts as a dispatcher, routing the message
     to the appropriate helper function based on its content.
     """
-    print('handle_message')
     user = message.from_user
     # PRIORITY 1: Check if this is an update to an existing ticket.
     # The helper returns True if it handled the message, so we can stop.
