@@ -165,7 +165,7 @@ import base64
 
 
 # --- REPLACE THE OLD ATTACHMENT FUNCTION WITH THIS NEW BASE64 VERSION ---
-def add_attachment_to_ticket(ticket_id, user_name, file_content, filename):
+def add_attachment_to_ticket(ticket_id, user_name, file_content, filename, caption=None):
     """
     Adds an attachment to a ticket by updating the ticket itself
     with a Base64 encoded file payload. This is a more reliable method.
@@ -189,11 +189,17 @@ def add_attachment_to_ticket(ticket_id, user_name, file_content, filename):
     encoded_file = base64.b64encode(file_content).decode('utf-8')
 
     # 2. Build the JSON payload.
+    # Create body text based on whether caption is provided
+    if caption:
+        body_text = f"<b>New message from {user_name} (Telegram):</b><br>{caption}"
+    else:
+        body_text = f"User {user_name} sent a file."
+    
     payload = {
         # We are adding a new "article" to the ticket
         "article": {
             "subject": "New Attachment from Telegram",
-            "body": f"User {user_name} sent a file.",
+            "body": body_text,
             "internal": False,
             # This is the special structure for Base64 attachments
             "attachments": [

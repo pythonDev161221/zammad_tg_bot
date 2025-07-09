@@ -80,8 +80,10 @@ def _handle_open_ticket_update(bot, message, user):
             photo_file_id = message.photo[-1].file_id
             file = bot.get_file(photo_file_id)
             file_content = file.download_as_bytearray()
+            # Include photo caption if present
+            photo_caption = message.caption if message.caption else "Photo attachment"
             success = zammad_api.add_attachment_to_ticket(
-                open_ticket.zammad_ticket_id, user.first_name, file_content, f"photo_{photo_file_id}.jpg"
+                open_ticket.zammad_ticket_id, user.first_name, file_content, f"photo_{photo_file_id}.jpg", photo_caption
             )
 
         if success:
