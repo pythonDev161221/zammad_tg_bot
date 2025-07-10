@@ -4,7 +4,7 @@ from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 import telegram
 from . import zammad_api
-from .models import OpenTicket  # <-- Add this import at the top
+from .models import OpenTicket, TelegramBot
 from django.core.exceptions import ObjectDoesNotExist
 
 
@@ -35,7 +35,9 @@ ZAMMAD_OPEN_STATES = ['new', 'open', 'pending reminder', 'pending close']
 # --- Helper Functions (Each does one specific job) ---
 def _closed_with_agent(message, user):
     try:
-        ticket_in_db = OpenTicket.objects.get(telegram_id=user.id)
+        # Get the current bot
+        current_bot = TelegramBot.objects.get(token=BOT_TOKEN)
+        ticket_in_db = OpenTicket.objects.get(telegram_id=user.id, bot=current_bot)
         ticket_details = zammad_api.get_ticket_details(ticket_in_db.zammad_ticket_id)
 
         if ticket_details and ticket_details.get('state', 'unknown').lower() in ZAMMAD_OPEN_STATES:
@@ -58,7 +60,9 @@ def _handle_open_ticket_update(bot, message, user):
         bool: True if the message was handled, False otherwise.
     """
     try:
-        open_ticket = OpenTicket.objects.get(telegram_id=user.id)
+        # Get the current bot
+        current_bot = TelegramBot.objects.get(token=BOT_TOKEN)
+        open_ticket = OpenTicket.objects.get(telegram_id=user.id, bot=current_bot)
 
         # Determine if this message is an update (text or photo)
         is_text_update = message.text and not message.text.startswith('/')
@@ -116,7 +120,9 @@ def _handle_start_command(bot, message):
 def _handle_status_command(bot, message, user):
     """Handles the /status command, showing the user's open ticket or lack thereof."""
     try:
-        open_ticket = OpenTicket.objects.get(telegram_id=user.id)
+        # Get the current bot
+        current_bot = TelegramBot.objects.get(token=BOT_TOKEN)
+        open_ticket = OpenTicket.objects.get(telegram_id=user.id, bot=current_bot)
         keyboard = [[
             telegram.InlineKeyboardButton(
                 "Cancel This Ticket ❌",
@@ -147,7 +153,9 @@ def _handle_contact_message(bot, message, user):
     chat_id = message.chat.id
     # 1. Prevent creating a new ticket if one is already open
     try:
-        ticket_in_db = OpenTicket.objects.get(telegram_id=user.id)
+        # Get the current bot
+        current_bot = TelegramBot.objects.get(token=BOT_TOKEN)
+        ticket_in_db = OpenTicket.objects.get(telegram_id=user.id, bot=current_bot)
         ticket_details = zammad_api.get_ticket_details(ticket_in_db.zammad_ticket_id)
 
         if ticket_details and ticket_details.get('state', 'unknown').lower() in ZAMMAD_OPEN_STATES:
@@ -180,8 +188,18 @@ def _handle_contact_message(bot, message, user):
     ticket_data = zammad_api.create_zammad_ticket(title=ticket_title, body=ticket_body)
 
     if ticket_data and ticket_data.get('id'):
+        # Get the current bot (reuse the one we already got or create if needed)
+        try:
+            current_bot = TelegramBot.objects.get(token=BOT_TOKEN)
+        except ObjectDoesNotExist:
+            current_bot = TelegramBot.objects.create(
+                name='Default Bot',
+                token=BOT_TOKEN
+            )
+        
         OpenTicket.objects.create(
             telegram_id=user.id,
+            bot=current_bot,
             zammad_ticket_id=ticket_data.get('id'),
             zammad_ticket_number=ticket_data.get('number')
         )
