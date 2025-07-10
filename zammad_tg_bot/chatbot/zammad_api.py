@@ -231,3 +231,74 @@ def add_attachment_to_ticket(ticket_id, user_name, file_content, filename, capti
         print(f"A network-level error occurred adding Base64 attachment: {e}")
         return False
 
+
+def get_article_attachments(article_id):
+    """
+    Fetches attachments for a specific article from Zammad.
+    First gets the article details, then extracts attachment info.
+    """
+    zammad_url = os.getenv("ZAMMAD_URL")
+    zammad_token = os.getenv("ZAMMAD_TOKEN")
+
+    if not all([zammad_url, zammad_token]):
+        print("Zammad URL or Token not found.")
+        return []
+
+    # Get article details which should include attachment info
+    url = f"{zammad_url}api/v1/ticket_articles/{article_id}"
+    headers = {"Authorization": f"Token token={zammad_token}"}
+
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        article = response.json()
+        
+        # DEBUG: Print article structure to understand attachment format
+        print(f"=== ARTICLE {article_id} DETAILS ===")
+        print(json.dumps(article, indent=2, default=str))
+        print(f"================================")
+        
+        # Extract attachments from article data
+        attachments = article.get('attachments', [])
+        print(f"Found {len(attachments)} attachments for article {article_id}")
+        return attachments
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching article details: {e}")
+        return []
+
+
+def download_attachment(article_id, attachment_id):
+    """
+    Downloads a specific attachment from Zammad.
+    Returns the file content as bytes or None if failed.
+    """
+    zammad_url = os.getenv("ZAMMAD_URL")
+    zammad_token = os.getenv("ZAMMAD_TOKEN")
+
+    if not all([zammad_url, zammad_token]):
+        print("Zammad URL or Token not found.")
+        return None
+
+    # Try different possible attachment download endpoints
+    possible_urls = [
+        f"{zammad_url}api/v1/ticket_attachment/{article_id}/{attachment_id}",
+        f"{zammad_url}api/v1/ticket_articles/{article_id}/attachments/{attachment_id}",
+        f"{zammad_url}api/v1/attachments/{attachment_id}"
+    ]
+    
+    headers = {"Authorization": f"Token token={zammad_token}"}
+
+    for url in possible_urls:
+        try:
+            print(f"Trying attachment download URL: {url}")
+            response = requests.get(url, headers=headers, timeout=30)
+            response.raise_for_status()
+            print(f"Successfully downloaded attachment {attachment_id} from {url}")
+            return response.content
+        except requests.exceptions.RequestException as e:
+            print(f"Failed URL {url}: {e}")
+            continue
+    
+    print(f"All attachment download URLs failed for attachment {attachment_id}")
+    return None
+

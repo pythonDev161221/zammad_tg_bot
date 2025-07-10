@@ -242,6 +242,11 @@ def zammad_webhook(request):
                 # Convert lists to single values
                 payload = {k: v[0] if isinstance(v, list) and len(v) == 1 else v for k, v in payload.items()}
             
+            # DEBUG: Print the entire payload to understand its structure
+            print(f"=== ZAMMAD WEBHOOK PAYLOAD ===")
+            print(json.dumps(payload, indent=2, default=str))
+            print(f"=============================")
+            
             # Try to extract ticket and article info from different payload formats
             if 'ticket' in payload and 'article' in payload:
                 # Full webhook payload format
@@ -254,6 +259,7 @@ def zammad_webhook(request):
                 ticket_id = payload.get('ticket_id') or payload.get('id')
                 ticket_state = payload.get('ticket_state') or payload.get('state')
                 article_info = {
+                    'id': payload.get('article_id') or payload.get('id'),
                     'type': payload.get('article_type') or payload.get('type'),
                     'sender': payload.get('article_sender') or payload.get('sender'),
                     'internal': payload.get('article_internal') or payload.get('internal'),
@@ -306,18 +312,80 @@ def _handle_agent_response(ticket_id, article_info):
         clean_text = re.sub(r'<[^>]+>', '', response_body)
         clean_text = clean_text.strip()
         
+        # Send text message if there's content
         if clean_text:
-            # Send agent response to Telegram user
             bot.send_message(
                 chat_id=open_ticket.telegram_id,
                 text=f"💬 **Support Agent Response:**\n\n{clean_text}",
                 parse_mode=telegram.ParseMode.MARKDOWN
             )
         
+        # Check for attachments
+        article_id = article_info.get('id')
+        if article_id:
+            _send_article_attachments_to_telegram(article_id, open_ticket.telegram_id)
+        
     except ObjectDoesNotExist:
         pass
     except Exception as e:
         print(f"Error sending agent response to Telegram: {e}")
+
+
+def _send_article_attachments_to_telegram(article_id, telegram_chat_id):
+    """Download and send attachments from Zammad article to Telegram"""
+    try:
+        # Get list of attachments for this article
+        attachments = zammad_api.get_article_attachments(article_id)
+        
+        if not attachments:
+            return
+            
+        for attachment in attachments:
+            attachment_id = attachment.get('id')
+            filename = attachment.get('filename', 'attachment')
+            mime_type = attachment.get('preferences', {}).get('Mime-Type', '')
+            
+            if not attachment_id:
+                continue
+                
+            # Download the attachment content
+            file_content = zammad_api.download_attachment(article_id, attachment_id)
+            if not file_content:
+                continue
+                
+            # Send based on file type
+            try:
+                if mime_type.startswith('image/'):
+                    # Send as photo
+                    bot.send_photo(
+                        chat_id=telegram_chat_id,
+                        photo=file_content,
+                        caption=f"📎 Agent sent: {filename}"
+                    )
+                else:
+                    # Send as document
+                    bot.send_document(
+                        chat_id=telegram_chat_id,
+                        document=file_content,
+                        filename=filename,
+                        caption=f"📎 Agent sent: {filename}"
+                    )
+                    
+            except Exception as send_error:
+                print(f"Error sending attachment {filename} to Telegram: {send_error}")
+                # Fallback: send as document if photo fails
+                try:
+                    bot.send_document(
+                        chat_id=telegram_chat_id,
+                        document=file_content,
+                        filename=filename,
+                        caption=f"📎 Agent sent: {filename}"
+                    )
+                except Exception as fallback_error:
+                    print(f"Fallback also failed for {filename}: {fallback_error}")
+                    
+    except Exception as e:
+        print(f"Error processing attachments for article {article_id}: {e}")
 
 
 # --- ADD THIS ENTIRE NEW FUNCTION ---
