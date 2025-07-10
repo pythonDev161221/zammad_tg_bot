@@ -229,71 +229,74 @@ def handle_message(message):
         )
 
 
-def _parse_webhook_payload(request):
-    """Parse and normalize webhook payload from different formats"""
-    if request.content_type == 'application/json':
-        payload = json.loads(request.body)
-    else:
-        # Handle form-encoded data from Zammad triggers
-        payload = dict(request.POST)
-        # Convert lists to single values
-        payload = {k: v[0] if isinstance(v, list) and len(v) == 1 else v for k, v in payload.items()}
+class WebhookHandler:
+    """Handles Zammad webhook processing and payload parsing"""
     
-    return payload
-
-
-def _extract_ticket_and_article_info(payload):
-    """Extract ticket and article information from webhook payload"""
-    if 'ticket' in payload and 'article' in payload:
-        # Full webhook payload format
-        ticket_info = payload.get('ticket', {})
-        article_info = payload.get('article', {})
-        ticket_id = ticket_info.get('id')
-        ticket_state = ticket_info.get('state')
-    else:
-        # Simplified trigger format - extract from flat structure
-        ticket_id = payload.get('ticket_id') or payload.get('id')
-        ticket_state = payload.get('ticket_state') or payload.get('state')
-        article_info = {
-            'id': payload.get('article_id') or payload.get('id'),
-            'type': payload.get('article_type') or payload.get('type'),
-            'sender': payload.get('article_sender') or payload.get('sender'),
-            'internal': payload.get('article_internal') or payload.get('internal'),
-            'body': payload.get('article_body') or payload.get('body', ''),
-            'subject': payload.get('article_subject') or payload.get('subject', '')
-        }
-        ticket_info = {'id': ticket_id, 'state': ticket_state}
+    def __init__(self):
+        self.agent_handler = AgentResponseHandler()
     
-    return ticket_info, article_info
-
-
-def _process_agent_article(ticket_id, article_info):
-    """Process new article from agent if it meets criteria"""
-    if not (article_info and article_info.get('body')):
-        return
+    def parse_payload(self, request):
+        """Parse and normalize webhook payload from different formats"""
+        if request.content_type == 'application/json':
+            payload = json.loads(request.body)
+        else:
+            # Handle form-encoded data from Zammad triggers
+            payload = dict(request.POST)
+            # Convert lists to single values
+            payload = {k: v[0] if isinstance(v, list) and len(v) == 1 else v for k, v in payload.items()}
+        
+        return payload
     
-    article_type = article_info.get('type')
-    article_sender = article_info.get('sender')
-    article_internal = str(article_info.get('internal', '')).lower() in ['true', '1', 'yes']
+    def extract_ticket_and_article_info(self, payload):
+        """Extract ticket and article information from webhook payload"""
+        if 'ticket' in payload and 'article' in payload:
+            # Full webhook payload format
+            ticket_info = payload.get('ticket', {})
+            article_info = payload.get('article', {})
+            ticket_id = ticket_info.get('id')
+            ticket_state = ticket_info.get('state')
+        else:
+            # Simplified trigger format - extract from flat structure
+            ticket_id = payload.get('ticket_id') or payload.get('id')
+            ticket_state = payload.get('ticket_state') or payload.get('state')
+            article_info = {
+                'id': payload.get('article_id') or payload.get('id'),
+                'type': payload.get('article_type') or payload.get('type'),
+                'sender': payload.get('article_sender') or payload.get('sender'),
+                'internal': payload.get('article_internal') or payload.get('internal'),
+                'body': payload.get('article_body') or payload.get('body', ''),
+                'subject': payload.get('article_subject') or payload.get('subject', '')
+            }
+            ticket_info = {'id': ticket_id, 'state': ticket_state}
+        
+        return ticket_info, article_info
     
-    if article_type in ['web', 'email', 'phone', 'note'] and article_sender != 'Customer' and not article_internal:
-        _handle_agent_response(ticket_id, article_info)
-
-
-def _process_ticket_closure(ticket_id, ticket_state):
-    """Handle ticket closure notification"""
-    if not (ticket_id and ticket_state == 'closed'):
-        return
+    def process_agent_article(self, ticket_id, article_info):
+        """Process new article from agent if it meets criteria"""
+        if not (article_info and article_info.get('body')):
+            return
+        
+        article_type = article_info.get('type')
+        article_sender = article_info.get('sender')
+        article_internal = str(article_info.get('internal', '')).lower() in ['true', '1', 'yes']
+        
+        if article_type in ['web', 'email', 'phone', 'note'] and article_sender != 'Customer' and not article_internal:
+            self.agent_handler.handle_agent_response(ticket_id, article_info)
     
-    try:
-        ticket_to_close = OpenTicket.objects.get(zammad_ticket_id=ticket_id)
-        bot.send_message(
-            chat_id=ticket_to_close.telegram_id,
-            text="✅ Your ticket has been resolved and closed by our support team."
-        )
-        ticket_to_close.delete()
-    except ObjectDoesNotExist:
-        pass
+    def process_ticket_closure(self, ticket_id, ticket_state):
+        """Handle ticket closure notification"""
+        if not (ticket_id and ticket_state == 'closed'):
+            return
+        
+        try:
+            ticket_to_close = OpenTicket.objects.get(zammad_ticket_id=ticket_id)
+            bot.send_message(
+                chat_id=ticket_to_close.telegram_id,
+                text="✅ Your ticket has been resolved and closed by our support team."
+            )
+            ticket_to_close.delete()
+        except ObjectDoesNotExist:
+            pass
 
 
 @csrf_exempt
@@ -303,14 +306,16 @@ def zammad_webhook(request):
         return HttpResponse("ok")
     
     try:
-        payload = _parse_webhook_payload(request)
-        ticket_info, article_info = _extract_ticket_and_article_info(payload)
+        webhook_handler = WebhookHandler()
+        
+        payload = webhook_handler.parse_payload(request)
+        ticket_info, article_info = webhook_handler.extract_ticket_and_article_info(payload)
         
         ticket_id = ticket_info.get('id')
         ticket_state = ticket_info.get('state')
         
-        _process_agent_article(ticket_id, article_info)
-        _process_ticket_closure(ticket_id, ticket_state)
+        webhook_handler.process_agent_article(ticket_id, article_info)
+        webhook_handler.process_ticket_closure(ticket_id, ticket_state)
         
     except Exception as e:
         print(f"Error processing Zammad webhook: {e}")
@@ -319,106 +324,115 @@ def zammad_webhook(request):
 
 
 
-def _clean_html_text(html_text):
-    """Remove HTML tags from text"""
-    import re
-    clean_text = re.sub(r'<[^>]+>', '', html_text)
-    return clean_text.strip()
-
-
-def _send_agent_text_message(telegram_chat_id, message_text):
-    """Send agent text message to Telegram"""
-    if not message_text:
-        return
+class TelegramMessageHandler:
+    """Handles sending messages and attachments to Telegram"""
     
-    bot.send_message(
-        chat_id=telegram_chat_id,
-        text=f"💬 **Support Agent Response:**\n\n{message_text}",
-        parse_mode=telegram.ParseMode.MARKDOWN
-    )
-
-
-def _handle_agent_response(ticket_id, article_info):
-    """Send agent response from Zammad to Telegram user"""
-    try:
-        # Find the ticket in our local DB
-        open_ticket = OpenTicket.objects.get(zammad_ticket_id=ticket_id)
-        
-        # Handle text content
-        response_body = article_info.get('body', '')
-        clean_text = _clean_html_text(response_body)
-        _send_agent_text_message(open_ticket.telegram_id, clean_text)
-        
-        # Handle attachments
-        article_id = article_info.get('id')
-        if article_id:
-            _send_article_attachments_to_telegram(article_id, open_ticket.telegram_id)
-        
-    except ObjectDoesNotExist:
-        pass
-    except Exception as e:
-        print(f"Error sending agent response to Telegram: {e}")
-
-
-def _send_attachment_to_telegram(telegram_chat_id, file_content, filename, mime_type):
-    """Send a single attachment to Telegram"""
-    try:
-        if mime_type.startswith('image/'):
-            # Send as photo
-            bot.send_photo(
-                chat_id=telegram_chat_id,
-                photo=file_content,
-                caption=f"📎 Agent sent: {filename}"
-            )
-        else:
-            # Send as document
-            bot.send_document(
-                chat_id=telegram_chat_id,
-                document=file_content,
-                filename=filename,
-                caption=f"📎 Agent sent: {filename}"
-            )
-    except Exception as send_error:
-        print(f"Error sending attachment {filename} to Telegram: {send_error}")
-        # Fallback: send as document if photo fails
-        try:
-            bot.send_document(
-                chat_id=telegram_chat_id,
-                document=file_content,
-                filename=filename,
-                caption=f"📎 Agent sent: {filename}"
-            )
-        except Exception as fallback_error:
-            print(f"Fallback also failed for {filename}: {fallback_error}")
-
-
-def _send_article_attachments_to_telegram(article_id, telegram_chat_id):
-    """Download and send attachments from Zammad article to Telegram"""
-    try:
-        # Get list of attachments for this article
-        attachments = zammad_api.get_article_attachments(article_id)
-        
-        if not attachments:
+    def __init__(self):
+        self.bot = bot
+    
+    def clean_html_text(self, html_text):
+        """Remove HTML tags from text"""
+        import re
+        clean_text = re.sub(r'<[^>]+>', '', html_text)
+        return clean_text.strip()
+    
+    def send_agent_text_message(self, telegram_chat_id, message_text):
+        """Send agent text message to Telegram"""
+        if not message_text:
             return
+        
+        self.bot.send_message(
+            chat_id=telegram_chat_id,
+            text=f"💬 **Support Agent Response:**\n\n{message_text}",
+            parse_mode=telegram.ParseMode.MARKDOWN
+        )
+    
+    def send_attachment_to_telegram(self, telegram_chat_id, file_content, filename, mime_type):
+        """Send a single attachment to Telegram"""
+        try:
+            if mime_type.startswith('image/'):
+                # Send as photo
+                self.bot.send_photo(
+                    chat_id=telegram_chat_id,
+                    photo=file_content,
+                    caption=f"📎 Agent sent: {filename}"
+                )
+            else:
+                # Send as document
+                self.bot.send_document(
+                    chat_id=telegram_chat_id,
+                    document=file_content,
+                    filename=filename,
+                    caption=f"📎 Agent sent: {filename}"
+                )
+        except Exception as send_error:
+            print(f"Error sending attachment {filename} to Telegram: {send_error}")
+            # Fallback: send as document if photo fails
+            try:
+                self.bot.send_document(
+                    chat_id=telegram_chat_id,
+                    document=file_content,
+                    filename=filename,
+                    caption=f"📎 Agent sent: {filename}"
+                )
+            except Exception as fallback_error:
+                print(f"Fallback also failed for {filename}: {fallback_error}")
+    
+    def send_article_attachments_to_telegram(self, article_id, telegram_chat_id):
+        """Download and send attachments from Zammad article to Telegram"""
+        try:
+            # Get list of attachments for this article
+            attachments = zammad_api.get_article_attachments(article_id)
             
-        for attachment in attachments:
-            attachment_id = attachment.get('id')
-            filename = attachment.get('filename', 'attachment')
-            mime_type = attachment.get('preferences', {}).get('Mime-Type', '')
-            
-            if not attachment_id:
-                continue
+            if not attachments:
+                return
                 
-            # Download the attachment content
-            file_content = zammad_api.download_attachment(article_id, attachment_id)
-            if not file_content:
-                continue
+            for attachment in attachments:
+                attachment_id = attachment.get('id')
+                filename = attachment.get('filename', 'attachment')
+                mime_type = attachment.get('preferences', {}).get('Mime-Type', '')
                 
-            # Send the attachment
-            _send_attachment_to_telegram(telegram_chat_id, file_content, filename, mime_type)
+                if not attachment_id:
+                    continue
                     
-    except Exception as e:
-        print(f"Error processing attachments for article {article_id}: {e}")
+                # Download the attachment content
+                file_content = zammad_api.download_attachment(article_id, attachment_id)
+                if not file_content:
+                    continue
+                    
+                # Send the attachment
+                self.send_attachment_to_telegram(telegram_chat_id, file_content, filename, mime_type)
+                        
+        except Exception as e:
+            print(f"Error processing attachments for article {article_id}: {e}")
+
+
+class AgentResponseHandler:
+    """Handles agent responses from Zammad to Telegram"""
+    
+    def __init__(self):
+        self.telegram_handler = TelegramMessageHandler()
+    
+    def handle_agent_response(self, ticket_id, article_info):
+        """Send agent response from Zammad to Telegram user"""
+        try:
+            # Find the ticket in our local DB
+            open_ticket = OpenTicket.objects.get(zammad_ticket_id=ticket_id)
+            
+            # Handle text content
+            response_body = article_info.get('body', '')
+            clean_text = self.telegram_handler.clean_html_text(response_body)
+            self.telegram_handler.send_agent_text_message(open_ticket.telegram_id, clean_text)
+            
+            # Handle attachments
+            article_id = article_info.get('id')
+            if article_id:
+                self.telegram_handler.send_article_attachments_to_telegram(article_id, open_ticket.telegram_id)
+            
+        except ObjectDoesNotExist:
+            pass
+        except Exception as e:
+            print(f"Error sending agent response to Telegram: {e}")
 
 
 # --- ADD THIS ENTIRE NEW FUNCTION ---
