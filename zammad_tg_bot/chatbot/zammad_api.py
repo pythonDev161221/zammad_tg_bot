@@ -253,14 +253,8 @@ def get_article_attachments(article_id):
         response.raise_for_status()
         article = response.json()
         
-        # DEBUG: Print article structure to understand attachment format
-        print(f"=== ARTICLE {article_id} DETAILS ===")
-        print(json.dumps(article, indent=2, default=str))
-        print(f"================================")
-        
         # Extract attachments from article data
         attachments = article.get('attachments', [])
-        print(f"Found {len(attachments)} attachments for article {article_id}")
         return attachments
     except requests.exceptions.RequestException as e:
         print(f"Error fetching article details: {e}")
@@ -290,15 +284,12 @@ def download_attachment(article_id, attachment_id):
 
     for url in possible_urls:
         try:
-            print(f"Trying attachment download URL: {url}")
             response = requests.get(url, headers=headers, timeout=30)
             response.raise_for_status()
-            print(f"Successfully downloaded attachment {attachment_id} from {url}")
             return response.content
-        except requests.exceptions.RequestException as e:
-            print(f"Failed URL {url}: {e}")
+        except requests.exceptions.RequestException:
             continue
     
-    print(f"All attachment download URLs failed for attachment {attachment_id}")
+    print(f"Error: Could not download attachment {attachment_id}")
     return None
 
