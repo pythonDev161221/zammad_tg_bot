@@ -1,0 +1,15 @@
+
+1. start ngrok
+
+ngrok http 8000
+
+2. renew webhook in zammad with new ngrok api
+
+3. renew curl with new ngrok api for each telegram bot
+
+curl "https://api.telegram.org/bot(telegramtoken)/setWebhook?url=https://2f32bd953663.ngrok-free.app/telegram/webhook/(telegramtoken)/"
+
+curl "https://api.telegram.org/bot(telegramtoken)/setWebhook?url=https://2f32bd953663.ngrok-free.app/telegram/webhook/(telegramtoken)/"
+
+4.run manage.py server doesn't first or last
+

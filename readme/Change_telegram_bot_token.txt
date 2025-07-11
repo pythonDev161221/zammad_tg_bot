@@ -1,0 +1,12 @@
+ To change token without creating new bot:
+
+  1. Update database (Python shell):
+  from chatbot.models import TelegramBot
+  bot = TelegramBot.objects.get(name='bot1')
+  bot.token = 'new_token_here'
+  bot.save()
+  2. Update .env file to match:
+  TELEGRAM_BOT_TOKEN=new_token_here
+  3. Set new webhook:
+  curl "https://api.telegram.org/bot<NEW_TOKEN>/setWebhook?url=https://2f32bd953663.ngrok-free.app/telegram/webhook/<NEW_TOKEN>/"
+
