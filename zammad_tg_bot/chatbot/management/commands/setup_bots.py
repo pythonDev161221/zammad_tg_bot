@@ -19,7 +19,7 @@ class Command(BaseCommand):
             
             bot, created = TelegramBot.objects.get_or_create(
                 token=token,
-                defaults={'name': bot_name}
+                defaults={'name': bot_name, 'zammad_group': bot_name}
             )
             
             if created:

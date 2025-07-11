@@ -202,7 +202,9 @@ def _handle_contact_message(bot, message, user, bot_record):
         f"**Phone Number:** {phone_number}"
     )
 
-    ticket_data = zammad_api.create_zammad_ticket(title=ticket_title, body=ticket_body)
+    # Use bot's zammad_group or default to "Users"
+    group_name = bot_record.zammad_group or "Users"
+    ticket_data = zammad_api.create_zammad_ticket(title=ticket_title, body=ticket_body, group=group_name)
 
     if ticket_data and ticket_data.get('id'):
         OpenTicket.objects.create(

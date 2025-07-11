@@ -49,14 +49,14 @@ class ZammadApiClient:
 class ZammadTicketManager(ZammadApiClient):
     """Manages Zammad ticket operations"""
     
-    def build_ticket_payload(self, title, body):
+    def build_ticket_payload(self, title, body, group="Users"):
         """Build the payload for creating a new ticket"""
         if not self.agent_email:
             raise ValueError("Agent email not found in environment variables.")
         
         return {
             "title": title,
-            "group": "Users",
+            "group_id": int(group) if group.isdigit() else 1,  # Convert to int, default to 1 (Users)
             "customer": self.agent_email,
             "article": {
                 "subject": title,
@@ -85,10 +85,10 @@ class ZammadTicketManager(ZammadApiClient):
             "internal": False,
         }
     
-    def create_ticket(self, title, body):
+    def create_ticket(self, title, body, group="Users"):
         """Creates a new ticket in Zammad"""
         url = f"{self.zammad_url}/api/v1/tickets"
-        payload = self.build_ticket_payload(title, body)
+        payload = self.build_ticket_payload(title, body, group)
 
         try:
             response = self.make_request('POST', url, payload)
@@ -281,9 +281,9 @@ article_manager = ZammadArticleManager()
 
 
 # Backward compatibility functions
-def create_zammad_ticket(title, body):
+def create_zammad_ticket(title, body, group="Users"):
     """Creates a new ticket in Zammad (backward compatibility)"""
-    return ticket_manager.create_ticket(title, body)
+    return ticket_manager.create_ticket(title, body, group)
 
 
 def get_ticket_details(ticket_id):

@@ -1,0 +1,5 @@
+manage.py setup_bots
+
+Create new telegram bot with tokens that are in .env.
+
+But it is create new bot without its contact with zammad group.
