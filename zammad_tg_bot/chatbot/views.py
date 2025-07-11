@@ -1,6 +1,6 @@
 import json
 import os
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseBadRequest
 from django.views.decorators.csrf import csrf_exempt
 import telegram
 from . import zammad_api
@@ -8,21 +8,46 @@ from .models import OpenTicket, TelegramBot
 from django.core.exceptions import ObjectDoesNotExist
 
 
+# Bot management
+def get_bot_by_token(token):
+    """Get or create a bot instance by token"""
+    try:
+        return TelegramBot.objects.get(token=token)
+    except ObjectDoesNotExist:
+        return None
 
-BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-bot = telegram.Bot(token=BOT_TOKEN)
+def get_telegram_bot_instance(token):
+    """Get telegram.Bot instance for a token"""
+    return telegram.Bot(token=token)
 
 
 @csrf_exempt
-def telegram_webhook(request):
-    if request.method == "POST":
+def telegram_webhook(request, bot_token):
+    """Secure webhook handler that validates bot token"""
+    if request.method != "POST":
+        return HttpResponseBadRequest("Only POST requests allowed")
+    
+    try:
+        # Validate the bot token exists in our database
+        bot_record = get_bot_by_token(bot_token)
+        if not bot_record:
+            return HttpResponseBadRequest("Invalid bot token")
+        
+        # Create bot instance for this specific token
+        bot = get_telegram_bot_instance(bot_token)
+        
+        # Process the webhook
         update_data = json.loads(request.body.decode('utf-8'))
         update = telegram.Update.de_json(update_data, bot)
+        
         if update.message:
-            handle_message(update.message)
-
+            handle_message(update.message, bot, bot_record)
         elif update.callback_query:
-            handle_callback_query(update.callback_query)
+            handle_callback_query(update.callback_query, bot, bot_record)
+            
+    except Exception as e:
+        print(f"Error processing webhook for bot {bot_token}: {e}")
+        return HttpResponseBadRequest("Error processing webhook")
 
     return HttpResponse("ok")
 
@@ -33,11 +58,9 @@ ZAMMAD_OPEN_STATES = ['new', 'open', 'pending reminder', 'pending close']
 
 
 # --- Helper Functions (Each does one specific job) ---
-def _closed_with_agent(message, user):
+def _closed_with_agent(message, user, bot_record):
     try:
-        # Get the current bot
-        current_bot = TelegramBot.objects.get(token=BOT_TOKEN)
-        ticket_in_db = OpenTicket.objects.get(telegram_id=user.id, bot=current_bot)
+        ticket_in_db = OpenTicket.objects.get(telegram_id=user.id, bot=bot_record)
         ticket_details = zammad_api.get_ticket_details(ticket_in_db.zammad_ticket_id)
 
         if ticket_details and ticket_details.get('state', 'unknown').lower() in ZAMMAD_OPEN_STATES:
@@ -50,8 +73,8 @@ def _closed_with_agent(message, user):
         # No ticket in our DB, we can proceed.
         pass
 
-def _handle_open_ticket_update(bot, message, user):
-    _closed_with_agent(message, user)
+def _handle_open_ticket_update(bot, message, user, bot_record):
+    _closed_with_agent(message, user, bot_record)
     """
     Checks if the user has an open ticket. If so, handles their message
     as an update (note or photo) to that ticket.
@@ -60,9 +83,7 @@ def _handle_open_ticket_update(bot, message, user):
         bool: True if the message was handled, False otherwise.
     """
     try:
-        # Get the current bot
-        current_bot = TelegramBot.objects.get(token=BOT_TOKEN)
-        open_ticket = OpenTicket.objects.get(telegram_id=user.id, bot=current_bot)
+        open_ticket = OpenTicket.objects.get(telegram_id=user.id, bot=bot_record)
 
         # Determine if this message is an update (text or photo)
         is_text_update = message.text and not message.text.startswith('/')
@@ -117,12 +138,10 @@ def _handle_start_command(bot, message):
     )
 
 
-def _handle_status_command(bot, message, user):
+def _handle_status_command(bot, message, user, bot_record):
     """Handles the /status command, showing the user's open ticket or lack thereof."""
     try:
-        # Get the current bot
-        current_bot = TelegramBot.objects.get(token=BOT_TOKEN)
-        open_ticket = OpenTicket.objects.get(telegram_id=user.id, bot=current_bot)
+        open_ticket = OpenTicket.objects.get(telegram_id=user.id, bot=bot_record)
         keyboard = [[
             telegram.InlineKeyboardButton(
                 "Cancel This Ticket ❌",
@@ -148,14 +167,12 @@ def _handle_status_command(bot, message, user):
 
 
 
-def _handle_contact_message(bot, message, user):
+def _handle_contact_message(bot, message, user, bot_record):
     """Handles a shared contact to create a new Zammad ticket."""
     chat_id = message.chat.id
     # 1. Prevent creating a new ticket if one is already open
     try:
-        # Get the current bot
-        current_bot = TelegramBot.objects.get(token=BOT_TOKEN)
-        ticket_in_db = OpenTicket.objects.get(telegram_id=user.id, bot=current_bot)
+        ticket_in_db = OpenTicket.objects.get(telegram_id=user.id, bot=bot_record)
         ticket_details = zammad_api.get_ticket_details(ticket_in_db.zammad_ticket_id)
 
         if ticket_details and ticket_details.get('state', 'unknown').lower() in ZAMMAD_OPEN_STATES:
@@ -188,18 +205,9 @@ def _handle_contact_message(bot, message, user):
     ticket_data = zammad_api.create_zammad_ticket(title=ticket_title, body=ticket_body)
 
     if ticket_data and ticket_data.get('id'):
-        # Get the current bot (reuse the one we already got or create if needed)
-        try:
-            current_bot = TelegramBot.objects.get(token=BOT_TOKEN)
-        except ObjectDoesNotExist:
-            current_bot = TelegramBot.objects.create(
-                name='Default Bot',
-                token=BOT_TOKEN
-            )
-        
         OpenTicket.objects.create(
             telegram_id=user.id,
-            bot=current_bot,
+            bot=bot_record,
             zammad_ticket_id=ticket_data.get('id'),
             zammad_ticket_number=ticket_data.get('number')
         )
@@ -212,7 +220,7 @@ def _handle_contact_message(bot, message, user):
 
 # --- Main Dispatcher Function ---
 
-def handle_message(message):
+def handle_message(message, bot, bot_record):
     """
     The main message handler. It acts as a dispatcher, routing the message
     to the appropriate helper function based on its content.
@@ -220,7 +228,7 @@ def handle_message(message):
     user = message.from_user
     # PRIORITY 1: Check if this is an update to an existing ticket.
     # The helper returns True if it handled the message, so we can stop.
-    if _handle_open_ticket_update(bot, message, user):
+    if _handle_open_ticket_update(bot, message, user, bot_record):
         return
 
     # PRIORITY 2: Handle specific commands and message types.
@@ -228,7 +236,7 @@ def handle_message(message):
         if message.text == '/start':
             _handle_start_command(bot, message)
         elif message.text == '/status':
-            _handle_status_command(bot, message, user)
+            _handle_status_command(bot, message, user, bot_record)
         else:
             # This is text that isn't a command and the user has no open ticket.
             bot.send_message(
@@ -236,7 +244,7 @@ def handle_message(message):
                 text="I'm sorry, I don't understand. Please use /start to create a ticket."
             )
     elif message.contact:
-        _handle_contact_message(bot, message, user)
+        _handle_contact_message(bot, message, user, bot_record)
     else:
         # This catches anything else (photos, stickers, etc.) when the user
         # does NOT have an open ticket.
@@ -308,6 +316,8 @@ class WebhookHandler:
         
         try:
             ticket_to_close = OpenTicket.objects.get(zammad_ticket_id=ticket_id)
+            # Get the bot instance for this ticket
+            bot = get_telegram_bot_instance(ticket_to_close.bot.token)
             bot.send_message(
                 chat_id=ticket_to_close.telegram_id,
                 text="✅ Your ticket has been resolved and closed by our support team."
@@ -345,8 +355,8 @@ def zammad_webhook(request):
 class TelegramMessageHandler:
     """Handles sending messages and attachments to Telegram"""
     
-    def __init__(self):
-        self.bot = bot
+    def __init__(self, bot_token):
+        self.bot = get_telegram_bot_instance(bot_token)
     
     def clean_html_text(self, html_text):
         """Remove HTML tags from text"""
@@ -428,24 +438,24 @@ class TelegramMessageHandler:
 class AgentResponseHandler:
     """Handles agent responses from Zammad to Telegram"""
     
-    def __init__(self):
-        self.telegram_handler = TelegramMessageHandler()
-    
     def handle_agent_response(self, ticket_id, article_info):
         """Send agent response from Zammad to Telegram user"""
         try:
             # Find the ticket in our local DB
             open_ticket = OpenTicket.objects.get(zammad_ticket_id=ticket_id)
             
+            # Create telegram handler for this specific bot
+            telegram_handler = TelegramMessageHandler(open_ticket.bot.token)
+            
             # Handle text content
             response_body = article_info.get('body', '')
-            clean_text = self.telegram_handler.clean_html_text(response_body)
-            self.telegram_handler.send_agent_text_message(open_ticket.telegram_id, clean_text)
+            clean_text = telegram_handler.clean_html_text(response_body)
+            telegram_handler.send_agent_text_message(open_ticket.telegram_id, clean_text)
             
             # Handle attachments
             article_id = article_info.get('id')
             if article_id:
-                self.telegram_handler.send_article_attachments_to_telegram(article_id, open_ticket.telegram_id)
+                telegram_handler.send_article_attachments_to_telegram(article_id, open_ticket.telegram_id)
             
         except ObjectDoesNotExist:
             pass
@@ -454,7 +464,7 @@ class AgentResponseHandler:
 
 
 # --- ADD THIS ENTIRE NEW FUNCTION ---
-def handle_callback_query(query):
+def handle_callback_query(query, bot, bot_record):
     """Handles all button presses."""
     user = query.from_user
     chat_id = query.message.chat.id

@@ -40,6 +40,12 @@ ALLOWED_HOSTS = ['localhost',
                  PUBLIC_DOMAIN,
                  ]
 
+# Telegram Bot Configuration
+TELEGRAM_BOT_TOKENS = {
+    'bot1': env('TELEGRAM_BOT_TOKEN', default=''),
+    'bot2': env('TELEGRAM_BOT_TOKEN_2', default=''),
+}
+
 
 # Application definition
 
