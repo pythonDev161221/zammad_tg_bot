@@ -129,7 +129,7 @@ def _handle_start_command(bot, message):
     """Handles the /start command, showing a welcome message and keyboard."""
     keyboard = [
         [telegram.KeyboardButton(_("Create New Ticket 📝"), request_contact=True)],
-        [telegram.KeyboardButton(_("Status"))]
+        [telegram.KeyboardButton("/status")]
     ]
     reply_markup = telegram.ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
     bot.send_message(
@@ -243,7 +243,7 @@ def handle_message(message, bot, bot_record):
     if message.text:
         if message.text == '/start':
             _handle_start_command(bot, message)
-        elif message.text == '/status' or message.text == _("Status"):
+        elif message.text == '/status':
             _handle_status_command(bot, message, user, bot_record)
         else:
             # This is text that isn't a command and the user has no open ticket.
