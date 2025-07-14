@@ -2,6 +2,7 @@ import json
 import os
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.views.decorators.csrf import csrf_exempt
+from django.utils.translation import gettext as _
 import telegram
 from . import zammad_api
 from .models import OpenTicket, TelegramBot
@@ -96,12 +97,12 @@ def _handle_open_ticket_update(bot, message, user, bot_record):
         # --- Handle the update ---
         success = False
         if is_text_update:
-            bot.send_message(chat_id=message.chat.id, text="Adding your note to the ticket...")
+            bot.send_message(chat_id=message.chat.id, text=_("Adding your note to the ticket..."))
             success = zammad_api.add_note_to_ticket(
                 open_ticket.zammad_ticket_id, user.first_name, message.text
             )
         elif is_photo_update:
-            bot.send_message(chat_id=message.chat.id, text="Uploading your photo...")
+            bot.send_message(chat_id=message.chat.id, text=_("Uploading your photo..."))
             photo_file_id = message.photo[-1].file_id
             file = bot.get_file(photo_file_id)
             file_content = file.download_as_bytearray()
@@ -112,10 +113,10 @@ def _handle_open_ticket_update(bot, message, user, bot_record):
             )
 
         if success:
-            bot.send_message(chat_id=message.chat.id, text="✅ Successfully updated your ticket.")
+            bot.send_message(chat_id=message.chat.id, text=_("✅ Successfully updated your ticket."))
         else:
             # Let the user know if the update failed.
-            bot.send_message(chat_id=message.chat.id, text="❌ Sorry, there was an error updating your ticket.")
+            bot.send_message(chat_id=message.chat.id, text=_("❌ Sorry, there was an error updating your ticket."))
 
         return True  # Crucially, we signal that the message was handled.
 
@@ -127,13 +128,13 @@ def _handle_open_ticket_update(bot, message, user, bot_record):
 def _handle_start_command(bot, message):
     """Handles the /start command, showing a welcome message and keyboard."""
     keyboard = [
-        [telegram.KeyboardButton("Create New Ticket 📝", request_contact=True)],
+        [telegram.KeyboardButton(_("Create New Ticket 📝"), request_contact=True)],
         [telegram.KeyboardButton("/status")]
     ]
     reply_markup = telegram.ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
     bot.send_message(
         chat_id=message.chat.id,
-        text="Welcome! To create a ticket, please share your contact information by clicking the button below.",
+        text=_("Welcome! To create a ticket, please share your contact information by clicking the button below."),
         reply_markup=reply_markup
     )
 
@@ -144,16 +145,16 @@ def _handle_status_command(bot, message, user, bot_record):
         open_ticket = OpenTicket.objects.get(telegram_id=user.id, bot=bot_record)
         keyboard = [[
             telegram.InlineKeyboardButton(
-                "Cancel This Ticket ❌",
+                _("Cancel This Ticket ❌"),
                 callback_data=f"cancel_ticket_{open_ticket.zammad_ticket_id}"
             )
         ]]
         reply_markup = telegram.InlineKeyboardMarkup(keyboard)
-        response_text = (
-            f"You have an open ticket: **#{open_ticket.zammad_ticket_number}**.\n\n"
-            f"An agent will attend to it as soon as possible. You can add notes or photos "
-            f"by sending them directly to this chat. You can also cancel it below."
-        )
+        response_text = _(
+            "You have an open ticket: **#{ticket_number}**.\n\n"
+            "An agent will attend to it as soon as possible. You can add notes or photos "
+            "by sending them directly to this chat. You can also cancel it below."
+        ).format(ticket_number=open_ticket.zammad_ticket_number)
         bot.send_message(
             chat_id=message.chat.id,
             text=response_text,
@@ -161,7 +162,7 @@ def _handle_status_command(bot, message, user, bot_record):
             reply_markup=reply_markup
         )
     except ObjectDoesNotExist:
-        response_text = "You do not have any open tickets. Use /start to create one."
+        response_text = _("You do not have any open tickets. Use /start to create one.")
         bot.send_message(chat_id=message.chat.id, text=response_text)
 
 
@@ -178,7 +179,7 @@ def _handle_contact_message(bot, message, user, bot_record):
         if ticket_details and ticket_details.get('state', 'unknown').lower() in ZAMMAD_OPEN_STATES:
             bot.send_message(
                 chat_id=chat_id,
-                text=f"❌ You already have an open ticket: #{ticket_in_db.zammad_ticket_number}. Please wait for it to be resolved."
+                text=_("❌ You already have an open ticket: #{ticket_number}. Please wait for it to be resolved.").format(ticket_number=ticket_in_db.zammad_ticket_number)
             )
             return
         else:
@@ -191,15 +192,20 @@ def _handle_contact_message(bot, message, user, bot_record):
 
     # 2. Create the new ticket
     phone_number = message.contact.phone_number
-    bot.send_message(chat_id=chat_id, text=f"Thank you! Creating your ticket. Please wait...")
+    bot.send_message(chat_id=chat_id, text=_("Thank you! Creating your ticket. Please wait..."))
 
-    ticket_title = f"New Ticket from Telegram User: {user.first_name}"
-    ticket_body = (
-        f"A new ticket was requested by Telegram user:\n\n"
-        f"**Name:** {user.first_name} {user.last_name or ''}\n"
-        f"**Username:** @{user.username}\n"
-        f"**Telegram User ID:** {user.id}\n"
-        f"**Phone Number:** {phone_number}"
+    ticket_title = _("New Ticket from Telegram User: {user_name}").format(user_name=user.first_name)
+    ticket_body = _(
+        "A new ticket was requested by Telegram user:\n\n"
+        "**Name:** {full_name}\n"
+        "**Username:** @{username}\n"
+        "**Telegram User ID:** {user_id}\n"
+        "**Phone Number:** {phone_number}"
+    ).format(
+        full_name=f"{user.first_name} {user.last_name or ''}",
+        username=user.username,
+        user_id=user.id,
+        phone_number=phone_number
     )
 
     # Use bot's zammad_group or default to "Users"
@@ -213,9 +219,9 @@ def _handle_contact_message(bot, message, user, bot_record):
             zammad_ticket_id=ticket_data.get('id'),
             zammad_ticket_number=ticket_data.get('number')
         )
-        response_text = f"✅ Success! Your ticket has been created.\nTicket Number: **{ticket_data.get('number')}**"
+        response_text = _("✅ Success! Your ticket has been created.\nTicket Number: **{ticket_number}**").format(ticket_number=ticket_data.get('number'))
     else:
-        response_text = "❌ Error! Could not create the ticket. Please check the server logs."
+        response_text = _("❌ Error! Could not create the ticket. Please check the server logs.")
 
     bot.send_message(chat_id=chat_id, text=response_text, parse_mode=telegram.ParseMode.MARKDOWN)
 
@@ -243,7 +249,7 @@ def handle_message(message, bot, bot_record):
             # This is text that isn't a command and the user has no open ticket.
             bot.send_message(
                 chat_id=message.chat.id,
-                text="I'm sorry, I don't understand. Please use /start to create a ticket."
+                text=_("I'm sorry, I don't understand. Please use /start to create a ticket.")
             )
     elif message.contact:
         _handle_contact_message(bot, message, user, bot_record)
@@ -253,7 +259,7 @@ def handle_message(message, bot, bot_record):
         print("message_have_not_contact")
         bot.send_message(
             chat_id=message.chat.id,
-            text="I'm sorry, I don't understand. Please use /start to create a ticket."
+            text=_("I'm sorry, I don't understand. Please use /start to create a ticket.")
         )
 
 
@@ -322,7 +328,7 @@ class WebhookHandler:
             bot = get_telegram_bot_instance(ticket_to_close.bot.token)
             bot.send_message(
                 chat_id=ticket_to_close.telegram_id,
-                text="✅ Your ticket has been resolved and closed by our support team."
+                text=_("✅ Your ticket has been resolved and closed by our support team.")
             )
             ticket_to_close.delete()
         except ObjectDoesNotExist:
@@ -373,7 +379,7 @@ class TelegramMessageHandler:
         
         self.bot.send_message(
             chat_id=telegram_chat_id,
-            text=f"💬 **Support Agent Response:**\n\n{message_text}",
+            text=_("💬 **Support Agent Response:**\n\n{message_text}").format(message_text=message_text),
             parse_mode=telegram.ParseMode.MARKDOWN
         )
     
@@ -385,7 +391,7 @@ class TelegramMessageHandler:
                 self.bot.send_photo(
                     chat_id=telegram_chat_id,
                     photo=file_content,
-                    caption=f"📎 Agent sent: {filename}"
+                    caption=_("📎 Agent sent: {filename}").format(filename=filename)
                 )
             else:
                 # Send as document
@@ -393,7 +399,7 @@ class TelegramMessageHandler:
                     chat_id=telegram_chat_id,
                     document=file_content,
                     filename=filename,
-                    caption=f"📎 Agent sent: {filename}"
+                    caption=_("📎 Agent sent: {filename}").format(filename=filename)
                 )
         except Exception as send_error:
             print(f"Error sending attachment {filename} to Telegram: {send_error}")
@@ -403,7 +409,7 @@ class TelegramMessageHandler:
                     chat_id=telegram_chat_id,
                     document=file_content,
                     filename=filename,
-                    caption=f"📎 Agent sent: {filename}"
+                    caption=_("📎 Agent sent: {filename}").format(filename=filename)
                 )
             except Exception as fallback_error:
                 print(f"Fallback also failed for {filename}: {fallback_error}")
@@ -475,7 +481,7 @@ def handle_callback_query(query, bot, bot_record):
     # Check if the button pressed is our cancel button
     if query.data.startswith('cancel_ticket_'):
         # Give instant feedback to the user
-        bot.answer_callback_query(callback_query_id=query.id, text="Processing your cancellation...")
+        bot.answer_callback_query(callback_query_id=query.id, text=_("Processing your cancellation..."))
 
         # Get the ticket ID from the button's data
         ticket_id = int(query.data.split('_')[-1])
@@ -486,9 +492,9 @@ def handle_callback_query(query, bot, bot_record):
         if success:
             # 2. If Zammad confirmed, delete the ticket from our local database
             OpenTicket.objects.filter(zammad_ticket_id=ticket_id).delete()
-            response_text = "✅ Your ticket has been successfully canceled."
+            response_text = _("✅ Your ticket has been successfully canceled.")
         else:
-            response_text = "❌ There was an error canceling your ticket in Zammad. Please contact an administrator."
+            response_text = _("❌ There was an error canceling your ticket in Zammad. Please contact an administrator.")
 
         # 3. Edit the original message to show the final result
         bot.edit_message_text(text=response_text, chat_id=chat_id, message_id=message_id)

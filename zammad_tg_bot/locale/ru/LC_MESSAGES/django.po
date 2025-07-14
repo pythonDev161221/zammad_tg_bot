@@ -1,0 +1,137 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-07-14 05:29+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=4; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
+"n%10<=4 && (n%100<12 || n%100>14) ? 1 : n%10==0 || (n%10>=5 && n%10<=9) || "
+"(n%100>=11 && n%100<=14)? 2 : 3);\n"
+#: zammad_tg_bot/chatbot/views.py:100
+msgid "Adding your note to the ticket..."
+msgstr ""
+
+#: zammad_tg_bot/chatbot/views.py:105
+msgid "Uploading your photo..."
+msgstr ""
+
+#: zammad_tg_bot/chatbot/views.py:116
+msgid "✅ Successfully updated your ticket."
+msgstr ""
+
+#: zammad_tg_bot/chatbot/views.py:119
+msgid "❌ Sorry, there was an error updating your ticket."
+msgstr ""
+
+#: zammad_tg_bot/chatbot/views.py:131
+msgid "Create New Ticket 📝"
+msgstr ""
+
+#: zammad_tg_bot/chatbot/views.py:137
+msgid ""
+"Welcome! To create a ticket, please share your contact information by "
+"clicking the button below."
+msgstr ""
+
+#: zammad_tg_bot/chatbot/views.py:148
+msgid "Cancel This Ticket ❌"
+msgstr ""
+
+#: zammad_tg_bot/chatbot/views.py:154
+#, python-brace-format
+msgid ""
+"You have an open ticket: **#{ticket_number}**.\n"
+"\n"
+"An agent will attend to it as soon as possible. You can add notes or photos "
+"by sending them directly to this chat. You can also cancel it below."
+msgstr ""
+
+#: zammad_tg_bot/chatbot/views.py:165
+msgid "You do not have any open tickets. Use /start to create one."
+msgstr ""
+
+#: zammad_tg_bot/chatbot/views.py:182
+#, python-brace-format
+msgid ""
+"❌ You already have an open ticket: #{ticket_number}. Please wait for it to "
+"be resolved."
+msgstr ""
+
+#: zammad_tg_bot/chatbot/views.py:195
+msgid "Thank you! Creating your ticket. Please wait..."
+msgstr ""
+
+#: zammad_tg_bot/chatbot/views.py:197
+#, python-brace-format
+msgid "New Ticket from Telegram User: {user_name}"
+msgstr ""
+
+#: zammad_tg_bot/chatbot/views.py:199
+#, python-brace-format
+msgid ""
+"A new ticket was requested by Telegram user:\n"
+"\n"
+"**Name:** {full_name}\n"
+"**Username:** @{username}\n"
+"**Telegram User ID:** {user_id}\n"
+"**Phone Number:** {phone_number}"
+msgstr ""
+
+#: zammad_tg_bot/chatbot/views.py:222
+#, python-brace-format
+msgid ""
+"✅ Success! Your ticket has been created.\n"
+"Ticket Number: **{ticket_number}**"
+msgstr ""
+
+#: zammad_tg_bot/chatbot/views.py:224
+msgid "❌ Error! Could not create the ticket. Please check the server logs."
+msgstr ""
+
+#: zammad_tg_bot/chatbot/views.py:252 zammad_tg_bot/chatbot/views.py:262
+msgid "I'm sorry, I don't understand. Please use /start to create a ticket."
+msgstr ""
+
+#: zammad_tg_bot/chatbot/views.py:331
+msgid "✅ Your ticket has been resolved and closed by our support team."
+msgstr ""
+
+#: zammad_tg_bot/chatbot/views.py:382
+#, python-brace-format
+msgid ""
+"💬 **Support Agent Response:**\n"
+"\n"
+"{message_text}"
+msgstr ""
+
+#: zammad_tg_bot/chatbot/views.py:394 zammad_tg_bot/chatbot/views.py:402
+#: zammad_tg_bot/chatbot/views.py:412
+#, python-brace-format
+msgid "📎 Agent sent: {filename}"
+msgstr ""
+
+#: zammad_tg_bot/chatbot/views.py:484
+msgid "Processing your cancellation..."
+msgstr ""
+
+#: zammad_tg_bot/chatbot/views.py:495
+msgid "✅ Your ticket has been successfully canceled."
+msgstr ""
+
+#: zammad_tg_bot/chatbot/views.py:497
+msgid ""
+"❌ There was an error canceling your ticket in Zammad. Please contact an "
+"administrator."
+msgstr ""
