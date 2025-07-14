@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Zammad Telegram Bot\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-07-14 05:29+0000\n"
+"POT-Creation-Date: 2025-07-14 05:49+0000\n"
 "PO-Revision-Date: 2025-07-14 05:30+0000\n"
 "Last-Translator: Claude <noreply@anthropic.com>\n"
 "Language-Team: Kyrgyz\n"
@@ -37,11 +37,17 @@ msgstr "❌ Кечиресиз, тикетиңизди жаңыртууда ка
 msgid "Create New Ticket 📝"
 msgstr "Жаңы тикет түзүү 📝"
 
+#: zammad_tg_bot/chatbot/views.py:132 zammad_tg_bot/chatbot/views.py:246
+msgid "Status"
+msgstr "Статус"
+
 #: zammad_tg_bot/chatbot/views.py:137
 msgid ""
 "Welcome! To create a ticket, please share your contact information by "
 "clicking the button below."
-msgstr "Кош келиңиз! Тикет түзүү үчүн, төмөндөгү баскычты басып, байланыш маалыматыңызды бөлүшүңүз."
+msgstr ""
+"Кош келиңиз! Тикет түзүү үчүн, төмөндөгү баскычты басып, байланыш "
+"маалыматыңызды бөлүшүңүз."
 
 #: zammad_tg_bot/chatbot/views.py:148
 msgid "Cancel This Ticket ❌"
@@ -54,7 +60,12 @@ msgid ""
 "\n"
 "An agent will attend to it as soon as possible. You can add notes or photos "
 "by sending them directly to this chat. You can also cancel it below."
-msgstr "Сизде ачык тикет бар: **#{ticket_number}**.\n\nАгент мүмкүн болушунча тездик менен аны карайт. Бул чатка түздөн-түз жөнөтүп, эскертүүлөрдү же сүрөттөрдү кошо аласыз. Ошондой эле аны төмөндө жокко чыгара аласыз."
+msgstr ""
+"Сизде ачык тикет бар: **#{ticket_number}**.\n"
+"\n"
+"Агент мүмкүн болушунча тездик менен аны карайт. Бул чатка түздөн-түз "
+"жөнөтүп, эскертүүлөрдү же сүрөттөрдү кошо аласыз. Ошондой эле аны төмөндө "
+"жокко чыгара аласыз."
 
 #: zammad_tg_bot/chatbot/views.py:165
 msgid "You do not have any open tickets. Use /start to create one."
@@ -65,7 +76,8 @@ msgstr "Сизде ачык тикеттер жок. Жаңысын түзүү �
 msgid ""
 "❌ You already have an open ticket: #{ticket_number}. Please wait for it to "
 "be resolved."
-msgstr "❌ Сизде буга чейин ачык тикет бар: #{ticket_number}. Аны чечилишин күтүңүз."
+msgstr ""
+"❌ Сизде буга чейин ачык тикет бар: #{ticket_number}. Аны чечилишин күтүңүз."
 
 #: zammad_tg_bot/chatbot/views.py:195
 msgid "Thank you! Creating your ticket. Please wait..."
@@ -85,14 +97,22 @@ msgid ""
 "**Username:** @{username}\n"
 "**Telegram User ID:** {user_id}\n"
 "**Phone Number:** {phone_number}"
-msgstr "Telegram колдонуучусу жаңы тикет суранды:\n\n**Аты:** {full_name}\n**Колдонуучу аты:** @{username}\n**Telegram ID:** {user_id}\n**Телефон номери:** {phone_number}"
+msgstr ""
+"Telegram колдонуучусу жаңы тикет суранды:\n"
+"\n"
+"**Аты:** {full_name}\n"
+"**Колдонуучу аты:** @{username}\n"
+"**Telegram ID:** {user_id}\n"
+"**Телефон номери:** {phone_number}"
 
 #: zammad_tg_bot/chatbot/views.py:222
 #, python-brace-format
 msgid ""
 "✅ Success! Your ticket has been created.\n"
 "Ticket Number: **{ticket_number}**"
-msgstr "✅ Ийгилик! Тикетиңиз түзүлдү.\nТикет номери: **{ticket_number}**"
+msgstr ""
+"✅ Ийгилик! Тикетиңиз түзүлдү.\n"
+"Тикет номери: **{ticket_number}**"
 
 #: zammad_tg_bot/chatbot/views.py:224
 msgid "❌ Error! Could not create the ticket. Please check the server logs."
@@ -112,7 +132,10 @@ msgid ""
 "💬 **Support Agent Response:**\n"
 "\n"
 "{message_text}"
-msgstr "💬 **Колдоо агентинин жообу:**\n\n{message_text}"
+msgstr ""
+"💬 **Колдоо агентинин жообу:**\n"
+"\n"
+"{message_text}"
 
 #: zammad_tg_bot/chatbot/views.py:394 zammad_tg_bot/chatbot/views.py:402
 #: zammad_tg_bot/chatbot/views.py:412
@@ -132,4 +155,6 @@ msgstr "✅ Тикетиңиз ийгиликтүү жокко чыгарылд�
 msgid ""
 "❌ There was an error canceling your ticket in Zammad. Please contact an "
 "administrator."
-msgstr "❌ Zammad'да тикетиңизди жокко чыгарууда ката болду. Администраторго кайрылыңыз."
+msgstr ""
+"❌ Zammad'да тикетиңизди жокко чыгарууда ката болду. Администраторго "
+"кайрылыңыз."
