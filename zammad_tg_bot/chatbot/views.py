@@ -5,8 +5,9 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.translation import gettext as _
 import telegram
 from . import zammad_api
-from .models import OpenTicket, TelegramBot
+from .models import OpenTicket, TelegramBot, Customer
 from django.core.exceptions import ObjectDoesNotExist
+import json
 
 
 # Bot management
@@ -190,8 +191,74 @@ def _handle_contact_message(bot, message, user, bot_record):
         # No ticket in our DB, we can proceed.
         pass
 
-    # 2. Create the new ticket
+    # 2. Show customer selection
     phone_number = message.contact.phone_number
+    show_customer_selection(bot, chat_id, user, bot_record, phone_number)
+
+
+def show_customer_selection(bot, chat_id, user, bot_record, phone_number):
+    """Show customer selection keyboard for ticket creation"""
+    # Get all customers for this bot
+    customers = Customer.objects.filter(telegram_bot=bot_record)
+    
+    if not customers.exists():
+        # No customers available, show error
+        bot.send_message(
+            chat_id=chat_id,
+            text=_("❌ No customers available. Please contact an administrator to add customers first.")
+        )
+        return
+    
+    # Create inline keyboard with customers
+    keyboard = []
+    for customer in customers:
+        # Use shorter callback data format: customer_id|phone_number|telegram_id
+        callback_data = f"cust_{customer.id}_{phone_number}_{user.id}"
+        keyboard.append([
+            telegram.InlineKeyboardButton(
+                text=f"{customer.first_name} {customer.last_name}",
+                callback_data=callback_data
+            )
+        ])
+    
+    reply_markup = telegram.InlineKeyboardMarkup(keyboard)
+    
+    bot.send_message(
+        chat_id=chat_id,
+        text=_("Please select a customer for this ticket:"),
+        reply_markup=reply_markup
+    )
+
+
+def handle_customer_selection_callback(callback_query, bot, bot_record):
+    """Handle customer selection callback and create ticket"""
+    try:
+        # Parse callback data format: cust_customer_id_phone_number_telegram_id
+        parts = callback_query.data.split('_')
+        if len(parts) < 4 or parts[0] != 'cust':
+            raise ValueError("Invalid callback data format")
+        
+        customer_id = int(parts[1])
+        phone_number = parts[2]
+        telegram_id = int(parts[3])
+        
+        # Get the customer
+        customer = Customer.objects.get(id=customer_id, telegram_bot=bot_record)
+        
+        # Create ticket with selected customer
+        create_ticket_with_customer(bot, callback_query.message.chat_id, callback_query.from_user, 
+                                  bot_record, customer, phone_number)
+        
+        # Answer callback to remove loading state
+        bot.answer_callback_query(callback_query.id, text=_("Creating ticket..."))
+        
+    except Exception as e:
+        bot.answer_callback_query(callback_query.id, text=_("Error selecting customer"))
+        print(f"Error handling customer selection: {e}")
+
+
+def create_ticket_with_customer(bot, chat_id, user, bot_record, customer, phone_number):
+    """Create ticket with the selected customer"""
     bot.send_message(chat_id=chat_id, text=_("Thank you! Creating your ticket. Please wait..."))
 
     ticket_title = _("New Ticket from Telegram User: {user_name}").format(user_name=user.first_name)
@@ -200,12 +267,14 @@ def _handle_contact_message(bot, message, user, bot_record):
         "**Name:** {full_name}\n"
         "**Username:** @{username}\n"
         "**Telegram User ID:** {user_id}\n"
-        "**Phone Number:** {phone_number}"
+        "**Phone Number:** {phone_number}\n"
+        "**Selected Customer:** {customer_name}"
     ).format(
         full_name=f"{user.first_name} {user.last_name or ''}",
         username=user.username,
         user_id=user.id,
-        phone_number=phone_number
+        phone_number=phone_number,
+        customer_name=f"{customer.first_name} {customer.last_name}"
     )
 
     # Use bot's zammad_group or default to "Users"
@@ -216,10 +285,14 @@ def _handle_contact_message(bot, message, user, bot_record):
         OpenTicket.objects.create(
             telegram_id=user.id,
             bot=bot_record,
+            customer=customer,
             zammad_ticket_id=ticket_data.get('id'),
             zammad_ticket_number=ticket_data.get('number')
         )
-        response_text = _("✅ Success! Your ticket has been created.\nTicket Number: **{ticket_number}**").format(ticket_number=ticket_data.get('number'))
+        response_text = _("✅ Success! Your ticket has been created.\nTicket Number: **{ticket_number}**\nCustomer: **{customer_name}**").format(
+            ticket_number=ticket_data.get('number'),
+            customer_name=f"{customer.first_name} {customer.last_name}"
+        )
     else:
         response_text = _("❌ Error! Could not create the ticket. Please check the server logs.")
 
@@ -477,6 +550,11 @@ def handle_callback_query(query, bot, bot_record):
     user = query.from_user
     chat_id = query.message.chat.id
     message_id = query.message.message_id
+
+    # Check if it's a customer selection callback
+    if query.data.startswith('cust_'):
+        handle_customer_selection_callback(query, bot, bot_record)
+        return
 
     # Check if the button pressed is our cancel button
     if query.data.startswith('cancel_ticket_'):
