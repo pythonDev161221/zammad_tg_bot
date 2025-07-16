@@ -49,15 +49,18 @@ class ZammadApiClient:
 class ZammadTicketManager(ZammadApiClient):
     """Manages Zammad ticket operations"""
     
-    def build_ticket_payload(self, title, body, group="Users"):
+    def build_ticket_payload(self, title, body, group="Users", customer_email=None):
         """Build the payload for creating a new ticket"""
         if not self.agent_email:
             raise ValueError("Agent email not found in environment variables.")
         
+        # Use provided customer_email or fall back to agent_email
+        customer = customer_email if customer_email else self.agent_email
+        
         return {
             "title": title,
             "group_id": int(group) if group.isdigit() else 1,  # Convert to int, default to 1 (Users)
-            "customer": self.agent_email,
+            "customer": customer,
             "article": {
                 "subject": title,
                 "body": body,
@@ -85,10 +88,54 @@ class ZammadTicketManager(ZammadApiClient):
             "internal": False,
         }
     
-    def create_ticket(self, title, body, group="Users"):
-        """Creates a new ticket in Zammad"""
+    def create_or_get_zammad_user(self, first_name, last_name):
+        """Create or get Zammad user based on customer name"""
+        # Generate email based on names
+        email = f"{first_name.lower()}.{last_name.lower()}@customer.local"
+        
+        # Try to find existing user by email
+        search_url = f"{self.zammad_url}/api/v1/users/search?query={email}"
+        try:
+            response = self.make_request('GET', search_url)
+            search_results = self.handle_response(response, "searching for Zammad user")
+            
+            if search_results and len(search_results) > 0:
+                print(f"Found existing Zammad user: {email}")
+                return search_results[0]
+        except requests.exceptions.RequestException as e:
+            print(f"Error searching for Zammad user: {e}")
+        
+        # Create new Zammad user
+        user_data = {
+            "firstname": first_name,
+            "lastname": last_name,
+            "email": email,
+            "login": email,
+            "roles": ["Customer"]
+        }
+        
+        create_url = f"{self.zammad_url}/api/v1/users"
+        try:
+            response = self.make_request('POST', create_url, user_data)
+            user = self.handle_response(response, "creating Zammad user")
+            print(f"Created new Zammad user: {email}")
+            return user
+        except requests.exceptions.RequestException as e:
+            print(f"Error creating Zammad user: {e}")
+            return None
+    
+    def create_ticket(self, title, body, group="Users", customer_first_name=None, customer_last_name=None):
+        """Creates a new ticket in Zammad with customer as the user"""
         url = f"{self.zammad_url}/api/v1/tickets"
-        payload = self.build_ticket_payload(title, body, group)
+        
+        # If customer info provided, create/get Zammad user for customer
+        customer_email = None
+        if customer_first_name and customer_last_name:
+            zammad_user = self.create_or_get_zammad_user(customer_first_name, customer_last_name)
+            if zammad_user:
+                customer_email = zammad_user['email']
+        
+        payload = self.build_ticket_payload(title, body, group, customer_email)
 
         try:
             response = self.make_request('POST', url, payload)
@@ -281,9 +328,9 @@ article_manager = ZammadArticleManager()
 
 
 # Backward compatibility functions
-def create_zammad_ticket(title, body, group="Users"):
+def create_zammad_ticket(title, body, group="Users", customer_first_name=None, customer_last_name=None):
     """Creates a new ticket in Zammad (backward compatibility)"""
-    return ticket_manager.create_ticket(title, body, group)
+    return ticket_manager.create_ticket(title, body, group, customer_first_name, customer_last_name)
 
 
 def get_ticket_details(ticket_id):

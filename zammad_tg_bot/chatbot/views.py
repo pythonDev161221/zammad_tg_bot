@@ -279,7 +279,13 @@ def create_ticket_with_customer(bot, chat_id, user, bot_record, customer, phone_
 
     # Use bot's zammad_group or default to "Users"
     group_name = bot_record.zammad_group or "Users"
-    ticket_data = zammad_api.create_zammad_ticket(title=ticket_title, body=ticket_body, group=group_name)
+    ticket_data = zammad_api.create_zammad_ticket(
+        title=ticket_title, 
+        body=ticket_body, 
+        group=group_name,
+        customer_first_name=customer.first_name,
+        customer_last_name=customer.last_name
+    )
 
     if ticket_data and ticket_data.get('id'):
         OpenTicket.objects.create(
