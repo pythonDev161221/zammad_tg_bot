@@ -144,23 +144,15 @@ def _handle_status_command(bot, message, user, bot_record):
     """Handles the /status command, showing the user's open ticket or lack thereof."""
     try:
         open_ticket = OpenTicket.objects.get(telegram_id=user.id, bot=bot_record)
-        keyboard = [[
-            telegram.InlineKeyboardButton(
-                _("Cancel This Ticket ❌"),
-                callback_data=f"cancel_ticket_{open_ticket.zammad_ticket_id}"
-            )
-        ]]
-        reply_markup = telegram.InlineKeyboardMarkup(keyboard)
         response_text = _(
             "You have an open ticket: **#{ticket_number}**.\n\n"
             "An agent will attend to it as soon as possible. You can add notes or photos "
-            "by sending them directly to this chat. You can also cancel it below."
+            "by sending them directly to this chat."
         ).format(ticket_number=open_ticket.zammad_ticket_number)
         bot.send_message(
             chat_id=message.chat.id,
             text=response_text,
-            parse_mode=telegram.ParseMode.MARKDOWN,
-            reply_markup=reply_markup
+            parse_mode=telegram.ParseMode.MARKDOWN
         )
     except ObjectDoesNotExist:
         response_text = _("You do not have any open tickets. Use /start to create one.")
