@@ -26,6 +26,9 @@ class Customer(models.Model):
     first_name = models.IntegerField()
     telegram_bot = models.ForeignKey(TelegramBot, on_delete=models.CASCADE)
     
+    class Meta:
+        unique_together = ['first_name', 'telegram_bot']
+    
     def __str__(self):
         return f"{self.first_name} ({self.telegram_bot.name})"
 
