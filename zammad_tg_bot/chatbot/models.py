@@ -6,6 +6,8 @@ class TelegramBot(models.Model):
     name = models.CharField(max_length=100, unique=True)
     token = models.CharField(max_length=200, unique=True)
     zammad_group = models.CharField(max_length=100, unique=True, null=True, blank=True)
+    customer_last_name = models.CharField(max_length=100, blank=True, null=True)
+    customer_prefix = models.CharField(max_length=64, blank=True, null=True, default="AZS")
     
     def __str__(self):
         return f"Bot: {self.name}"
@@ -13,12 +15,11 @@ class TelegramBot(models.Model):
 
 class Customer(models.Model):
     """Stores customer information"""
-    first_name = models.CharField(max_length=100)
-    last_name = models.CharField(max_length=100)
+    first_name = models.IntegerField()
     telegram_bot = models.ForeignKey(TelegramBot, on_delete=models.CASCADE)
     
     def __str__(self):
-        return f"{self.first_name} {self.last_name} ({self.telegram_bot.name})"
+        return f"{self.first_name} ({self.telegram_bot.name})"
 
 
 class OpenTicket(models.Model):
