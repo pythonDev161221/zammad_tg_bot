@@ -189,8 +189,8 @@ def _handle_contact_message(bot, message, user, bot_record):
 
 
 def show_customer_selection(bot, chat_id, user, bot_record, phone_number):
-    """Show customer selection keyboard for ticket creation"""
-    # Get all customers for this bot
+    """Ask user to enter customer number for ticket creation"""
+    # Get all customers for this bot to check if any exist
     customers = Customer.objects.filter(telegram_bot=bot_record)
     
     if not customers.exists():
@@ -201,52 +201,97 @@ def show_customer_selection(bot, chat_id, user, bot_record, phone_number):
         )
         return
     
-    # Create inline keyboard with customers
-    keyboard = []
-    for customer in customers:
-        # Use shorter callback data format: customer_id|phone_number|telegram_id
-        callback_data = f"cust_{customer.id}_{phone_number}_{user.id}"
-        keyboard.append([
-            telegram.InlineKeyboardButton(
-                text=f"{getattr(bot_record.zammad_config, 'customer_prefix', 'AZS')}{str(customer.first_name)} {getattr(bot_record.zammad_config, 'customer_last_name', '') or ''}",
-                callback_data=callback_data
-            )
-        ])
+    # Store phone number in user session (we'll use a simple approach with user state)
+    # Store pending ticket creation state
+    from django.core.cache import cache
+    cache_key = f"pending_ticket_{user.id}_{bot_record.id}"
+    cache.set(cache_key, {
+        'phone_number': phone_number,
+        'chat_id': chat_id,
+        'user_id': user.id
+    }, timeout=300)  # 5 minutes timeout
     
-    reply_markup = telegram.InlineKeyboardMarkup(keyboard)
+    # Show available customer numbers for reference
+    customer_numbers = [str(c.first_name) for c in customers]
+    customer_list = ", ".join(customer_numbers)
     
     bot.send_message(
         chat_id=chat_id,
-        text=_("Please select a customer for this ticket:"),
-        reply_markup=reply_markup
+        text=_("Please enter the customer number:\n\nAvailable customers: {customer_list}").format(customer_list=customer_list)
     )
 
 
-def handle_customer_selection_callback(callback_query, bot, bot_record):
-    """Handle customer selection callback and create ticket"""
+# Customer selection callback is no longer used since we switched to text input
+# def handle_customer_selection_callback(callback_query, bot, bot_record):
+#     """Handle customer selection callback and create ticket"""
+#     # This function is deprecated - we now use text input for customer numbers
+
+
+def _handle_customer_number_input(bot, message, user, bot_record):
+    """Handle customer number input for pending ticket creation"""
+    if not message.text or message.text.startswith('/'):
+        return False
+    
+    from django.core.cache import cache
+    cache_key = f"pending_ticket_{user.id}_{bot_record.id}"
+    pending_data = cache.get(cache_key)
+    
+    if not pending_data:
+        return False  # No pending ticket creation
+    
     try:
-        # Parse callback data format: cust_customer_id_phone_number_telegram_id
-        parts = callback_query.data.split('_')
-        if len(parts) < 4 or parts[0] != 'cust':
-            raise ValueError("Invalid callback data format")
+        # Try to convert input to integer (customer number)
+        customer_number = int(message.text.strip())
         
-        customer_id = int(parts[1])
-        phone_number = parts[2]
-        telegram_id = int(parts[3])
+        # Find customer with this number for this bot
+        customer = Customer.objects.get(first_name=customer_number, telegram_bot=bot_record)
         
-        # Get the customer
-        customer = Customer.objects.get(id=customer_id, telegram_bot=bot_record)
+        # Clear the pending state
+        cache.delete(cache_key)
         
-        # Create ticket with selected customer
-        create_ticket_with_customer(bot, callback_query.message.chat_id, callback_query.from_user, 
-                                  bot_record, customer, phone_number)
+        # Create ticket with found customer
+        create_ticket_with_customer(
+            bot, 
+            message.chat.id, 
+            user, 
+            bot_record, 
+            customer, 
+            pending_data['phone_number']
+        )
         
-        # Answer callback to remove loading state
-        bot.answer_callback_query(callback_query.id, text=_("Creating ticket..."))
+        return True
+        
+    except ValueError:
+        # Invalid number format
+        bot.send_message(
+            chat_id=message.chat.id,
+            text=_("❌ Please enter a valid customer number (digits only).")
+        )
+        return True
+        
+    except Customer.DoesNotExist:
+        # Customer not found
+        customers = Customer.objects.filter(telegram_bot=bot_record)
+        customer_numbers = [str(c.first_name) for c in customers]
+        customer_list = ", ".join(customer_numbers)
+        
+        bot.send_message(
+            chat_id=message.chat.id,
+            text=_("❌ Customer number {customer_number} not found.\n\nAvailable customers: {customer_list}").format(
+                customer_number=customer_number,
+                customer_list=customer_list
+            )
+        )
+        return True
         
     except Exception as e:
-        bot.answer_callback_query(callback_query.id, text=_("Error selecting customer"))
-        print(f"Error handling customer selection: {e}")
+        # General error
+        bot.send_message(
+            chat_id=message.chat.id,
+            text=_("❌ Error finding customer. Please try again.")
+        )
+        print(f"Error handling customer number input: {e}")
+        return True
 
 
 def create_ticket_with_customer(bot, chat_id, user, bot_record, customer, phone_number):
@@ -310,7 +355,11 @@ def handle_message(message, bot, bot_record):
     if _handle_open_ticket_update(bot, message, user, bot_record):
         return
 
-    # PRIORITY 2: Handle specific commands and message types.
+    # PRIORITY 2: Check if user is entering customer number for pending ticket
+    if _handle_customer_number_input(bot, message, user, bot_record):
+        return
+
+    # PRIORITY 3: Handle specific commands and message types.
     if message.text:
         if message.text == '/start':
             _handle_start_command(bot, message)
@@ -549,10 +598,10 @@ def handle_callback_query(query, bot, bot_record):
     chat_id = query.message.chat.id
     message_id = query.message.message_id
 
-    # Check if it's a customer selection callback
-    if query.data.startswith('cust_'):
-        handle_customer_selection_callback(query, bot, bot_record)
-        return
+    # Customer selection callback is no longer used - we switched to text input
+    # if query.data.startswith('cust_'):
+    #     handle_customer_selection_callback(query, bot, bot_record)
+    #     return
 
     # Check if the button pressed is our cancel button
     if query.data.startswith('cancel_ticket_'):
