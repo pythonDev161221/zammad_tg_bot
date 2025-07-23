@@ -211,13 +211,12 @@ def show_customer_selection(bot, chat_id, user, bot_record, phone_number):
         'user_id': user.id
     }, timeout=300)  # 5 minutes timeout
     
-    # Show available customer numbers for reference
-    customer_numbers = [str(c.first_name) for c in customers]
-    customer_list = ", ".join(customer_numbers)
+    # Get customer prefix from ZammadGroup
+    customer_prefix = getattr(bot_record.zammad_config, 'customer_prefix', 'AZS')
     
     bot.send_message(
         chat_id=chat_id,
-        text=_("Please enter the customer number:\n\nAvailable customers: {customer_list}").format(customer_list=customer_list)
+        text=_("Choose the number of you {customer_prefix}?").format(customer_prefix=customer_prefix)
     )
 
 
@@ -271,15 +270,13 @@ def _handle_customer_number_input(bot, message, user, bot_record):
         
     except Customer.DoesNotExist:
         # Customer not found
-        customers = Customer.objects.filter(telegram_bot=bot_record)
-        customer_numbers = [str(c.first_name) for c in customers]
-        customer_list = ", ".join(customer_numbers)
+        customer_prefix = getattr(bot_record.zammad_config, 'customer_prefix', 'AZS')
         
         bot.send_message(
             chat_id=message.chat.id,
-            text=_("❌ Customer number {customer_number} not found.\n\nAvailable customers: {customer_list}").format(
-                customer_number=customer_number,
-                customer_list=customer_list
+            text=_("❌ Customer number {customer_prefix}{customer_number} not found. Please try again.").format(
+                customer_prefix=customer_prefix,
+                customer_number=customer_number
             )
         )
         return True
