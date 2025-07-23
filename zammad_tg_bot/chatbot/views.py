@@ -308,7 +308,7 @@ def create_ticket_with_customer(bot, chat_id, user, bot_record, customer, phone_
         username=user.username,
         user_id=user.id,
         phone_number=phone_number,
-        customer_name=f"{getattr(bot_record.zammad_config, 'customer_prefix', 'AZS')}{str(customer.first_name)} {getattr(bot_record.zammad_config, 'customer_last_name', '') or ''}"
+        customer_name=f"{getattr(bot_record.zammad_config, 'customer_prefix', 'AZS')}_{str(customer.first_name)} {getattr(bot_record.zammad_config, 'customer_last_name', '') or ''}"
     )
 
     # Use bot's zammad_group or default to "Users" 
@@ -317,7 +317,7 @@ def create_ticket_with_customer(bot, chat_id, user, bot_record, customer, phone_
         title=ticket_title, 
         body=ticket_body, 
         group=group_name,
-        customer_first_name=f"{getattr(bot_record.zammad_config, 'customer_prefix', 'AZS')}{str(customer.first_name)}",
+        customer_first_name=f"{getattr(bot_record.zammad_config, 'customer_prefix', 'AZS')}_{str(customer.first_name)}",
         customer_last_name=getattr(bot_record.zammad_config, 'customer_last_name', None)
     )
 
@@ -329,14 +329,14 @@ def create_ticket_with_customer(bot, chat_id, user, bot_record, customer, phone_
             zammad_ticket_id=ticket_data.get('id'),
             zammad_ticket_number=ticket_data.get('number')
         )
-        response_text = _("✅ Success! Your ticket has been created.\nTicket Number: **{ticket_number}**\nCustomer: **{customer_name}**").format(
+        response_text = _("✅ Success! Your ticket has been created.\nTicket Number: {ticket_number}\nCustomer: {customer_name}").format(
             ticket_number=ticket_data.get('number'),
-            customer_name=f"{getattr(bot_record.zammad_config, 'customer_prefix', 'AZS')}{str(customer.first_name)} {getattr(bot_record.zammad_config, 'customer_last_name', '') or ''}"
+            customer_name=f"{getattr(bot_record.zammad_config, 'customer_prefix', 'AZS')}_{str(customer.first_name)} {getattr(bot_record.zammad_config, 'customer_last_name', '') or ''}"
         )
     else:
         response_text = _("❌ Error! Could not create the ticket. Please check the server logs.")
 
-    bot.send_message(chat_id=chat_id, text=response_text, parse_mode=telegram.ParseMode.MARKDOWN)
+    bot.send_message(chat_id=chat_id, text=response_text)
 
 
 # --- Main Dispatcher Function ---
