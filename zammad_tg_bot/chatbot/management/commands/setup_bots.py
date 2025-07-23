@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 from django.conf import settings
-from chatbot.models import TelegramBot
+from chatbot.models import TelegramBot, ZammadGroup
 
 
 class Command(BaseCommand):
@@ -19,7 +19,13 @@ class Command(BaseCommand):
             
             bot, created = TelegramBot.objects.get_or_create(
                 token=token,
-                defaults={'name': bot_name, 'zammad_group': bot_name}
+                defaults={'name': bot_name}
+            )
+            
+            # Create or update ZammadGroup
+            zammad_group, _ = ZammadGroup.objects.get_or_create(
+                telegram_bot=bot,
+                defaults={'zammad_group': bot_name}
             )
             
             if created:

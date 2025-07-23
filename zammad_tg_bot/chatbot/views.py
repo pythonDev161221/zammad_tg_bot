@@ -208,7 +208,7 @@ def show_customer_selection(bot, chat_id, user, bot_record, phone_number):
         callback_data = f"cust_{customer.id}_{phone_number}_{user.id}"
         keyboard.append([
             telegram.InlineKeyboardButton(
-                text=f"{customer.first_name} {customer.last_name}",
+                text=f"{getattr(bot_record.zammad_config, 'customer_prefix', 'AZS')}{str(customer.first_name)} {getattr(bot_record.zammad_config, 'customer_last_name', '') or ''}",
                 callback_data=callback_data
             )
         ])
@@ -266,17 +266,17 @@ def create_ticket_with_customer(bot, chat_id, user, bot_record, customer, phone_
         username=user.username,
         user_id=user.id,
         phone_number=phone_number,
-        customer_name=f"{customer.first_name} {customer.last_name}"
+        customer_name=f"{getattr(bot_record.zammad_config, 'customer_prefix', 'AZS')}{str(customer.first_name)} {getattr(bot_record.zammad_config, 'customer_last_name', '') or ''}"
     )
 
-    # Use bot's zammad_group or default to "Users"
-    group_name = bot_record.zammad_group or "Users"
+    # Use bot's zammad_group or default to "Users" 
+    group_name = getattr(bot_record.zammad_config, 'zammad_group', None) or "Users"
     ticket_data = zammad_api.create_zammad_ticket(
         title=ticket_title, 
         body=ticket_body, 
         group=group_name,
-        customer_first_name=customer.first_name,
-        customer_last_name=customer.last_name
+        customer_first_name=f"{getattr(bot_record.zammad_config, 'customer_prefix', 'AZS')}{str(customer.first_name)}",
+        customer_last_name=getattr(bot_record.zammad_config, 'customer_last_name', None)
     )
 
     if ticket_data and ticket_data.get('id'):
@@ -289,7 +289,7 @@ def create_ticket_with_customer(bot, chat_id, user, bot_record, customer, phone_
         )
         response_text = _("✅ Success! Your ticket has been created.\nTicket Number: **{ticket_number}**\nCustomer: **{customer_name}**").format(
             ticket_number=ticket_data.get('number'),
-            customer_name=f"{customer.first_name} {customer.last_name}"
+            customer_name=f"{getattr(bot_record.zammad_config, 'customer_prefix', 'AZS')}{str(customer.first_name)} {getattr(bot_record.zammad_config, 'customer_last_name', '') or ''}"
         )
     else:
         response_text = _("❌ Error! Could not create the ticket. Please check the server logs.")
