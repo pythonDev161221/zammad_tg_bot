@@ -49,7 +49,7 @@ class ZammadApiClient:
 class ZammadTicketManager(ZammadApiClient):
     """Manages Zammad ticket operations"""
     
-    def build_ticket_payload(self, title, body, group="Users", customer_email=None):
+    def build_ticket_payload(self, title, body, group="Users", customer_email=None, priority=2):
         """Build the payload for creating a new ticket"""
         if not self.agent_email:
             raise ValueError("Agent email not found in environment variables.")
@@ -61,6 +61,7 @@ class ZammadTicketManager(ZammadApiClient):
             "title": title,
             "group_id": int(group) if group.isdigit() else 1,  # Convert to int, default to 1 (Users)
             "customer": customer,
+            "priority_id": priority,  # 1=Low, 2=Medium, 3=High
             "article": {
                 "subject": title,
                 "body": body,
@@ -124,7 +125,7 @@ class ZammadTicketManager(ZammadApiClient):
             print(f"Error creating Zammad user: {e}")
             return None
     
-    def create_ticket(self, title, body, group="Users", customer_first_name=None, customer_last_name=None):
+    def create_ticket(self, title, body, group="Users", customer_first_name=None, customer_last_name=None, priority=2):
         """Creates a new ticket in Zammad with customer as the user"""
         url = f"{self.zammad_url}/api/v1/tickets"
         
@@ -135,7 +136,7 @@ class ZammadTicketManager(ZammadApiClient):
             if zammad_user:
                 customer_email = zammad_user['email']
         
-        payload = self.build_ticket_payload(title, body, group, customer_email)
+        payload = self.build_ticket_payload(title, body, group, customer_email, priority)
 
         try:
             response = self.make_request('POST', url, payload)
@@ -328,9 +329,9 @@ article_manager = ZammadArticleManager()
 
 
 # Backward compatibility functions
-def create_zammad_ticket(title, body, group="Users", customer_first_name=None, customer_last_name=None):
+def create_zammad_ticket(title, body, group="Users", customer_first_name=None, customer_last_name=None, priority=2):
     """Creates a new ticket in Zammad (backward compatibility)"""
-    return ticket_manager.create_ticket(title, body, group, customer_first_name, customer_last_name)
+    return ticket_manager.create_ticket(title, body, group, customer_first_name, customer_last_name, priority)
 
 
 def get_ticket_details(ticket_id):

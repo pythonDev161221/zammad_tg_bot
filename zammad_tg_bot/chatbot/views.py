@@ -208,7 +208,8 @@ def show_customer_selection(bot, chat_id, user, bot_record, phone_number):
     cache.set(cache_key, {
         'phone_number': phone_number,
         'chat_id': chat_id,
-        'user_id': user.id
+        'user_id': user.id,
+        'step': 'customer_selection'
     }, timeout=300)  # 5 minutes timeout
     
     # Get customer prefix from ZammadGroup
@@ -217,6 +218,35 @@ def show_customer_selection(bot, chat_id, user, bot_record, phone_number):
     bot.send_message(
         chat_id=chat_id,
         text=_("Choose the number of you {customer_prefix}?").format(customer_prefix=customer_prefix)
+    )
+
+
+def show_priority_selection(bot, chat_id, user, bot_record, customer, phone_number):
+    """Show priority selection buttons after customer selection"""
+    from django.core.cache import cache
+    
+    # Update cache with customer and move to priority selection step
+    cache_key = f"pending_ticket_{user.id}_{bot_record.id}"
+    cache.set(cache_key, {
+        'phone_number': phone_number,
+        'chat_id': chat_id,
+        'user_id': user.id,
+        'customer_id': customer.id,
+        'step': 'priority_selection'
+    }, timeout=300)
+    
+    # Create inline keyboard for priority selection
+    keyboard = [
+        [telegram.InlineKeyboardButton(_("Level 1 (Low Priority)"), callback_data=f"priority_1_{user.id}_{bot_record.id}")],
+        [telegram.InlineKeyboardButton(_("Level 2 (Medium Priority)"), callback_data=f"priority_2_{user.id}_{bot_record.id}")],
+        [telegram.InlineKeyboardButton(_("Level 3 (High Priority)"), callback_data=f"priority_3_{user.id}_{bot_record.id}")]
+    ]
+    reply_markup = telegram.InlineKeyboardMarkup(keyboard)
+    
+    bot.send_message(
+        chat_id=chat_id,
+        text=_("Please select the priority level for your ticket:"),
+        reply_markup=reply_markup
     )
 
 
@@ -245,16 +275,13 @@ def _handle_customer_number_input(bot, message, user, bot_record):
         # Find customer with this number for this bot
         customer = Customer.objects.get(first_name=customer_number, telegram_bot=bot_record)
         
-        # Clear the pending state
-        cache.delete(cache_key)
-        
-        # Create ticket with found customer
-        create_ticket_with_customer(
-            bot, 
-            message.chat.id, 
-            user, 
-            bot_record, 
-            customer, 
+        # Show priority selection instead of creating ticket immediately
+        show_priority_selection(
+            bot,
+            message.chat.id,
+            user,
+            bot_record,
+            customer,
             pending_data['phone_number']
         )
         
@@ -291,8 +318,9 @@ def _handle_customer_number_input(bot, message, user, bot_record):
         return True
 
 
-def create_ticket_with_customer(bot, chat_id, user, bot_record, customer, phone_number):
-    """Create ticket with the selected customer"""
+def create_ticket_with_customer(bot, chat_id, user, bot_record, customer, phone_number, priority=2):
+    """Create ticket with the selected customer and priority"""
+    priority_text = {1: "Low", 2: "Medium", 3: "High"}
     bot.send_message(chat_id=chat_id, text=_("Thank you! Creating your ticket. Please wait..."))
 
     ticket_title = _("New Ticket from Telegram User: {user_name}").format(user_name=user.first_name)
@@ -302,13 +330,15 @@ def create_ticket_with_customer(bot, chat_id, user, bot_record, customer, phone_
         "**Username:** @{username}\n"
         "**Telegram User ID:** {user_id}\n"
         "**Phone Number:** {phone_number}\n"
-        "**Selected Customer:** {customer_name}"
+        "**Selected Customer:** {customer_name}\n"
+        "**Priority:** {priority_text}"
     ).format(
         full_name=f"{user.first_name} {user.last_name or ''}",
         username=user.username,
         user_id=user.id,
         phone_number=phone_number,
-        customer_name=f"{getattr(bot_record.zammad_config, 'customer_prefix', 'AZS')}_{str(customer.first_name)} {getattr(bot_record.zammad_config, 'customer_last_name', '') or ''}"
+        customer_name=f"{getattr(bot_record.zammad_config, 'customer_prefix', 'AZS')}_{str(customer.first_name)} {getattr(bot_record.zammad_config, 'customer_last_name', '') or ''}",
+        priority_text=priority_text.get(priority, "Medium")
     )
 
     # Use bot's zammad_group or default to "Users" 
@@ -318,7 +348,8 @@ def create_ticket_with_customer(bot, chat_id, user, bot_record, customer, phone_
         body=ticket_body, 
         group=group_name,
         customer_first_name=f"{getattr(bot_record.zammad_config, 'customer_prefix', 'AZS')}_{str(customer.first_name)}",
-        customer_last_name=getattr(bot_record.zammad_config, 'customer_last_name', None)
+        customer_last_name=getattr(bot_record.zammad_config, 'customer_last_name', None),
+        priority=priority
     )
 
     if ticket_data and ticket_data.get('id'):
@@ -327,11 +358,13 @@ def create_ticket_with_customer(bot, chat_id, user, bot_record, customer, phone_
             bot=bot_record,
             customer=customer,
             zammad_ticket_id=ticket_data.get('id'),
-            zammad_ticket_number=ticket_data.get('number')
+            zammad_ticket_number=ticket_data.get('number'),
+            priority=priority
         )
-        response_text = _("✅ Success! Your ticket has been created.\nTicket Number: {ticket_number}\nCustomer: {customer_name}").format(
+        response_text = _("✅ Success! Your ticket has been created.\nTicket Number: {ticket_number}\nCustomer: {customer_name}\nPriority: {priority_text}").format(
             ticket_number=ticket_data.get('number'),
-            customer_name=f"{getattr(bot_record.zammad_config, 'customer_prefix', 'AZS')}_{str(customer.first_name)} {getattr(bot_record.zammad_config, 'customer_last_name', '') or ''}"
+            customer_name=f"{getattr(bot_record.zammad_config, 'customer_prefix', 'AZS')}_{str(customer.first_name)} {getattr(bot_record.zammad_config, 'customer_last_name', '') or ''}",
+            priority_text=priority_text.get(priority, "Medium")
         )
     else:
         response_text = _("❌ Error! Could not create the ticket. Please check the server logs.")
@@ -595,6 +628,11 @@ def handle_callback_query(query, bot, bot_record):
     chat_id = query.message.chat.id
     message_id = query.message.message_id
 
+    # Handle priority selection
+    if query.data.startswith('priority_'):
+        handle_priority_selection_callback(query, bot, bot_record)
+        return
+
     # Customer selection callback is no longer used - we switched to text input
     # if query.data.startswith('cust_'):
     #     handle_customer_selection_callback(query, bot, bot_record)
@@ -620,4 +658,85 @@ def handle_callback_query(query, bot, bot_record):
 
         # 3. Edit the original message to show the final result
         bot.edit_message_text(text=response_text, chat_id=chat_id, message_id=message_id)
+
+
+def handle_priority_selection_callback(query, bot, bot_record):
+    """Handle priority selection callback and create ticket"""
+    user = query.from_user
+    chat_id = query.message.chat.id
+    message_id = query.message.message_id
+    
+    # Parse callback data: priority_X_userid_botid
+    try:
+        parts = query.data.split('_')
+        if len(parts) != 4 or parts[0] != 'priority':
+            bot.answer_callback_query(callback_query_id=query.id, text=_("Invalid selection"))
+            return
+            
+        priority = int(parts[1])
+        user_id = int(parts[2])
+        bot_id = int(parts[3])
+        
+        # Verify user and bot match
+        if user_id != user.id or bot_id != bot_record.id:
+            bot.answer_callback_query(callback_query_id=query.id, text=_("Invalid selection"))
+            return
+            
+        # Get pending ticket data from cache
+        from django.core.cache import cache
+        cache_key = f"pending_ticket_{user.id}_{bot_record.id}"
+        pending_data = cache.get(cache_key)
+        
+        if not pending_data or pending_data.get('step') != 'priority_selection':
+            bot.answer_callback_query(callback_query_id=query.id, text=_("Session expired. Please start again."))
+            bot.edit_message_text(
+                text=_("❌ Session expired. Please use /start to create a new ticket."),
+                chat_id=chat_id,
+                message_id=message_id
+            )
+            return
+            
+        # Get customer from database
+        from .models import Customer
+        try:
+            customer = Customer.objects.get(id=pending_data['customer_id'])
+        except Customer.DoesNotExist:
+            bot.answer_callback_query(callback_query_id=query.id, text=_("Customer not found"))
+            return
+            
+        # Clear cache
+        cache.delete(cache_key)
+        
+        # Give feedback to user
+        priority_text = {1: "Low", 2: "Medium", 3: "High"}
+        bot.answer_callback_query(
+            callback_query_id=query.id, 
+            text=_("Priority selected: {priority}").format(priority=priority_text.get(priority, "Medium"))
+        )
+        
+        # Edit message to show selection
+        bot.edit_message_text(
+            text=_("Priority selected: Level {priority} ({priority_text})").format(
+                priority=priority,
+                priority_text=priority_text.get(priority, "Medium")
+            ),
+            chat_id=chat_id,
+            message_id=message_id
+        )
+        
+        # Create ticket with selected priority
+        create_ticket_with_customer(
+            bot,
+            chat_id,
+            user,
+            bot_record,
+            customer,
+            pending_data['phone_number'],
+            priority
+        )
+        
+    except (ValueError, IndexError) as e:
+        print(f"Error handling priority selection: {e}")
+        bot.answer_callback_query(callback_query_id=query.id, text=_("Invalid selection"))
+        return
 

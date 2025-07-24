@@ -40,6 +40,7 @@ class OpenTicket(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, default=1)
     zammad_ticket_id = models.IntegerField()
     zammad_ticket_number = models.CharField(max_length=50)
+    priority = models.IntegerField(default=2)  # 1=Low, 2=Medium, 3=High
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
