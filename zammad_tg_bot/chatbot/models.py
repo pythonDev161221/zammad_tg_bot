@@ -33,6 +33,27 @@ class Customer(models.Model):
         return f"{self.first_name} ({self.telegram_bot.name})"
 
 
+class Question(models.Model):
+    """Questions to ask before ticket creation (shared across all bots)"""
+    QUESTION_TYPES = [
+        ('text', 'Text Input'),
+        ('choice', 'Multiple Choice'),
+    ]
+    
+    question_text = models.TextField()
+    question_type = models.CharField(max_length=10, choices=QUESTION_TYPES, default='text')
+    order = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['order', 'created_at']
+        unique_together = ['order']
+    
+    def __str__(self):
+        return f"Q{self.order}: {self.question_text[:50]}..."
+
+
 class OpenTicket(models.Model):
     """Enhanced to support multiple bots"""
     telegram_id = models.BigIntegerField()

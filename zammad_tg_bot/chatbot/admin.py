@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import TelegramBot, ZammadGroup, Customer, OpenTicket
+from .models import TelegramBot, ZammadGroup, Customer, OpenTicket, Question
 
 
 @admin.register(TelegramBot)
@@ -23,9 +23,18 @@ class CustomerAdmin(admin.ModelAdmin):
     search_fields = ('first_name',)
 
 
+@admin.register(Question)
+class QuestionAdmin(admin.ModelAdmin):
+    list_display = ('order', 'question_text', 'question_type', 'is_active', 'created_at')
+    list_filter = ('question_type', 'is_active')
+    search_fields = ('question_text',)
+    readonly_fields = ('created_at',)
+    ordering = ('order',)
+
+
 @admin.register(OpenTicket)
 class OpenTicketAdmin(admin.ModelAdmin):
-    list_display = ('telegram_id', 'bot', 'customer', 'zammad_ticket_number', 'created_at')
-    list_filter = ('bot', 'created_at')
+    list_display = ('telegram_id', 'bot', 'customer', 'zammad_ticket_number', 'priority', 'created_at')
+    list_filter = ('bot', 'priority', 'created_at')
     search_fields = ('telegram_id', 'zammad_ticket_number')
     readonly_fields = ('created_at',)

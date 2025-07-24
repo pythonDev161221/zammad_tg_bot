@@ -5,7 +5,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.translation import gettext as _
 import telegram
 from . import zammad_api
-from .models import OpenTicket, TelegramBot, Customer
+from .models import OpenTicket, TelegramBot, Customer, Question
 from django.core.exceptions import ObjectDoesNotExist
 import json
 
@@ -318,6 +318,114 @@ def _handle_customer_number_input(bot, message, user, bot_record):
         return True
 
 
+def start_question_flow(bot, chat_id, user, bot_record, customer, phone_number, priority):
+    """Start the question flow or create ticket if no questions"""
+    # Get active questions ordered by sequence
+    questions = Question.objects.filter(is_active=True).order_by('order')
+    
+    if not questions.exists():
+        # No questions, create ticket immediately
+        create_ticket_with_customer(bot, chat_id, user, bot_record, customer, phone_number, priority)
+        return
+    
+    # Start question flow
+    from django.core.cache import cache
+    cache_key = f"pending_ticket_{user.id}_{bot_record.id}"
+    cache.set(cache_key, {
+        'phone_number': phone_number,
+        'chat_id': chat_id,
+        'user_id': user.id,
+        'customer_id': customer.id,
+        'priority': priority,
+        'step': 'questions',
+        'current_question': 0,
+        'answers': {}
+    }, timeout=600)  # 10 minutes for questions
+    
+    # Ask first question
+    ask_current_question(bot, chat_id, user, bot_record, questions[0], 0)
+
+
+def ask_current_question(bot, chat_id, user, bot_record, question, question_index):
+    """Ask the current question"""
+    total_questions = Question.objects.filter(is_active=True).count()
+    
+    bot.send_message(
+        chat_id=chat_id,
+        text=_("Question {current}/{total}:\n\n{question_text}").format(
+            current=question_index + 1,
+            total=total_questions,
+            question_text=question.question_text
+        )
+    )
+
+
+def handle_question_answer(bot, message, user, bot_record):
+    """Handle answer to current question"""
+    if not message.text or message.text.startswith('/'):
+        return False
+    
+    from django.core.cache import cache
+    cache_key = f"pending_ticket_{user.id}_{bot_record.id}"
+    pending_data = cache.get(cache_key)
+    
+    if not pending_data or pending_data.get('step') != 'questions':
+        return False
+    
+    # Get current question
+    questions = Question.objects.filter(is_active=True).order_by('order')
+    current_question_index = pending_data.get('current_question', 0)
+    
+    if current_question_index >= questions.count():
+        return False
+    
+    current_question = questions[current_question_index]
+    
+    # Store answer
+    answers = pending_data.get('answers', {})
+    answers[f"q_{current_question.id}"] = {
+        'question': current_question.question_text,
+        'answer': message.text
+    }
+    
+    # Move to next question or finish
+    next_question_index = current_question_index + 1
+    
+    if next_question_index >= questions.count():
+        # All questions answered, create ticket
+        from .models import Customer
+        try:
+            customer = Customer.objects.get(id=pending_data['customer_id'])
+            cache.delete(cache_key)
+            
+            create_ticket_with_customer_and_answers(
+                bot,
+                message.chat.id,
+                user,
+                bot_record,
+                customer,
+                pending_data['phone_number'],
+                pending_data['priority'],
+                answers
+            )
+        except Customer.DoesNotExist:
+            bot.send_message(
+                chat_id=message.chat.id,
+                text=_("❌ Error: Customer not found. Please start again.")
+            )
+            cache.delete(cache_key)
+    else:
+        # Ask next question
+        pending_data['current_question'] = next_question_index
+        pending_data['answers'] = answers
+        cache.set(cache_key, pending_data, timeout=600)
+        
+        next_question = questions[next_question_index]
+        ask_current_question(bot, message.chat.id, user, bot_record, next_question, next_question_index)
+    
+    return True
+
+
 def create_ticket_with_customer(bot, chat_id, user, bot_record, customer, phone_number, priority=2):
     """Create ticket with the selected customer and priority"""
     priority_text = {1: "Low", 2: "Medium", 3: "High"}
@@ -372,6 +480,67 @@ def create_ticket_with_customer(bot, chat_id, user, bot_record, customer, phone_
     bot.send_message(chat_id=chat_id, text=response_text)
 
 
+def create_ticket_with_customer_and_answers(bot, chat_id, user, bot_record, customer, phone_number, priority, answers):
+    """Create ticket with customer, priority, and question answers"""
+    priority_text = {1: "Low", 2: "Medium", 3: "High"}
+    bot.send_message(chat_id=chat_id, text=_("Thank you! Creating your ticket. Please wait..."))
+
+    ticket_title = _("New Ticket from Telegram User: {user_name}").format(user_name=user.first_name)
+    
+    # Build ticket body with answers
+    ticket_body = _(
+        "A new ticket was requested by Telegram user:\n\n"
+        "**Name:** {full_name}\n"
+        "**Username:** @{username}\n"
+        "**Telegram User ID:** {user_id}\n"
+        "**Phone Number:** {phone_number}\n"
+        "**Selected Customer:** {customer_name}\n"
+        "**Priority:** {priority_text}\n\n"
+        "**Additional Information:**\n"
+    ).format(
+        full_name=f"{user.first_name} {user.last_name or ''}",
+        username=user.username,
+        user_id=user.id,
+        phone_number=phone_number,
+        customer_name=f"{getattr(bot_record.zammad_config, 'customer_prefix', 'AZS')}_{str(customer.first_name)} {getattr(bot_record.zammad_config, 'customer_last_name', '') or ''}",
+        priority_text=priority_text.get(priority, "Medium")
+    )
+    
+    # Add questions and answers
+    for answer_data in answers.values():
+        ticket_body += f"**Q:** {answer_data['question']}\n**A:** {answer_data['answer']}\n\n"
+
+    # Use bot's zammad_group or default to "Users" 
+    group_name = getattr(bot_record.zammad_config, 'zammad_group', None) or "Users"
+    ticket_data = zammad_api.create_zammad_ticket(
+        title=ticket_title, 
+        body=ticket_body, 
+        group=group_name,
+        customer_first_name=f"{getattr(bot_record.zammad_config, 'customer_prefix', 'AZS')}_{str(customer.first_name)}",
+        customer_last_name=getattr(bot_record.zammad_config, 'customer_last_name', None),
+        priority=priority
+    )
+
+    if ticket_data and ticket_data.get('id'):
+        OpenTicket.objects.create(
+            telegram_id=user.id,
+            bot=bot_record,
+            customer=customer,
+            zammad_ticket_id=ticket_data.get('id'),
+            zammad_ticket_number=ticket_data.get('number'),
+            priority=priority
+        )
+        response_text = _("✅ Success! Your ticket has been created.\nTicket Number: {ticket_number}\nCustomer: {customer_name}\nPriority: {priority_text}").format(
+            ticket_number=ticket_data.get('number'),
+            customer_name=f"{getattr(bot_record.zammad_config, 'customer_prefix', 'AZS')}_{str(customer.first_name)} {getattr(bot_record.zammad_config, 'customer_last_name', '') or ''}",
+            priority_text=priority_text.get(priority, "Medium")
+        )
+    else:
+        response_text = _("❌ Error! Could not create the ticket. Please check the server logs.")
+
+    bot.send_message(chat_id=chat_id, text=response_text)
+
+
 # --- Main Dispatcher Function ---
 
 def handle_message(message, bot, bot_record):
@@ -385,11 +554,15 @@ def handle_message(message, bot, bot_record):
     if _handle_open_ticket_update(bot, message, user, bot_record):
         return
 
-    # PRIORITY 2: Check if user is entering customer number for pending ticket
+    # PRIORITY 2: Check if user is answering questions
+    if handle_question_answer(bot, message, user, bot_record):
+        return
+
+    # PRIORITY 3: Check if user is entering customer number for pending ticket
     if _handle_customer_number_input(bot, message, user, bot_record):
         return
 
-    # PRIORITY 3: Handle specific commands and message types.
+    # PRIORITY 4: Handle specific commands and message types.
     if message.text:
         if message.text == '/start':
             _handle_start_command(bot, message)
@@ -724,8 +897,8 @@ def handle_priority_selection_callback(query, bot, bot_record):
             message_id=message_id
         )
         
-        # Create ticket with selected priority
-        create_ticket_with_customer(
+        # Start question flow or create ticket if no questions
+        start_question_flow(
             bot,
             chat_id,
             user,
