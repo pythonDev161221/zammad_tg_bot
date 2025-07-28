@@ -222,7 +222,7 @@ def show_customer_selection(bot, chat_id, user, bot_record, phone_number):
 
 
 def show_priority_selection(bot, chat_id, user, bot_record, customer, phone_number):
-    """Show priority selection buttons after customer selection"""
+    """Show issue type selection buttons after customer selection"""
     from django.core.cache import cache
     
     # Update cache with customer and move to priority selection step
@@ -235,17 +235,19 @@ def show_priority_selection(bot, chat_id, user, bot_record, customer, phone_numb
         'step': 'priority_selection'
     }, timeout=300)
     
-    # Create inline keyboard for priority selection
+    # Create inline keyboard for issue type selection
     keyboard = [
-        [telegram.InlineKeyboardButton(_("Level 1 (Low Priority)"), callback_data=f"priority_1_{user.id}_{bot_record.id}")],
-        [telegram.InlineKeyboardButton(_("Level 2 (Medium Priority)"), callback_data=f"priority_2_{user.id}_{bot_record.id}")],
-        [telegram.InlineKeyboardButton(_("Level 3 (High Priority)"), callback_data=f"priority_3_{user.id}_{bot_record.id}")]
+        [telegram.InlineKeyboardButton(_("Ticket mistake"), callback_data=f"issue_ticket_mistake_{user.id}_{bot_record.id}")],
+        [telegram.InlineKeyboardButton(_("No internet"), callback_data=f"issue_no_internet_{user.id}_{bot_record.id}")],
+        [telegram.InlineKeyboardButton(_("One workplace not works"), callback_data=f"issue_workplace_not_works_{user.id}_{bot_record.id}")],
+        [telegram.InlineKeyboardButton(_("One fuel pump not works"), callback_data=f"issue_fuel_pump_not_works_{user.id}_{bot_record.id}")],
+        [telegram.InlineKeyboardButton(_("Gas station not works"), callback_data=f"issue_gas_station_not_works_{user.id}_{bot_record.id}")]
     ]
     reply_markup = telegram.InlineKeyboardMarkup(keyboard)
     
     bot.send_message(
         chat_id=chat_id,
-        text=_("Please select the priority level for your ticket:"),
+        text=_("Please select the type of issue you are experiencing:"),
         reply_markup=reply_markup
     )
 
@@ -318,14 +320,14 @@ def _handle_customer_number_input(bot, message, user, bot_record):
         return True
 
 
-def start_question_flow(bot, chat_id, user, bot_record, customer, phone_number, priority):
+def start_question_flow(bot, chat_id, user, bot_record, customer, phone_number, priority, issue_type=None):
     """Start the question flow or create ticket if no questions"""
     # Get active questions ordered by sequence
     questions = Question.objects.filter(is_active=True).order_by('order')
     
     if not questions.exists():
         # No questions, create ticket immediately
-        create_ticket_with_customer(bot, chat_id, user, bot_record, customer, phone_number, priority)
+        create_ticket_with_customer(bot, chat_id, user, bot_record, customer, phone_number, priority, issue_type)
         return
     
     # Start question flow
@@ -337,6 +339,7 @@ def start_question_flow(bot, chat_id, user, bot_record, customer, phone_number, 
         'user_id': user.id,
         'customer_id': customer.id,
         'priority': priority,
+        'issue_type': issue_type,
         'step': 'questions',
         'current_question': 0,
         'answers': {}
@@ -446,7 +449,8 @@ def handle_question_answer(bot, message, user, bot_record):
                 customer,
                 pending_data['phone_number'],
                 pending_data['priority'],
-                answers
+                answers,
+                pending_data.get('issue_type')
             )
         except Customer.DoesNotExist:
             bot.send_message(
@@ -466,12 +470,17 @@ def handle_question_answer(bot, message, user, bot_record):
     return True
 
 
-def create_ticket_with_customer(bot, chat_id, user, bot_record, customer, phone_number, priority=2):
+def create_ticket_with_customer(bot, chat_id, user, bot_record, customer, phone_number, priority=2, issue_type=None):
     """Create ticket with the selected customer and priority"""
     priority_text = {1: "Low", 2: "Medium", 3: "High"}
     bot.send_message(chat_id=chat_id, text=_("Thank you! Creating your ticket. Please wait..."))
 
     ticket_title = _("New Ticket from Telegram User: {user_name}").format(user_name=user.first_name)
+    
+    issue_description = ""
+    if issue_type:
+        issue_description = f"\n**Issue Type:** {issue_type}\n"
+    
     ticket_body = _(
         "A new ticket was requested by Telegram user:\n\n"
         "**Name:** {full_name}\n"
@@ -479,14 +488,15 @@ def create_ticket_with_customer(bot, chat_id, user, bot_record, customer, phone_
         "**Telegram User ID:** {user_id}\n"
         "**Phone Number:** {phone_number}\n"
         "**Selected Customer:** {customer_name}\n"
-        "**Priority:** {priority_text}"
+        "**Priority:** {priority_text}{issue_description}"
     ).format(
         full_name=f"{user.first_name} {user.last_name or ''}",
         username=user.username,
         user_id=user.id,
         phone_number=phone_number,
         customer_name=f"{getattr(bot_record.zammad_config, 'customer_prefix', 'AZS')}_{str(customer.first_name)} {getattr(bot_record.zammad_config, 'customer_last_name', '') or ''}",
-        priority_text=priority_text.get(priority, "Medium")
+        priority_text=priority_text.get(priority, "Medium"),
+        issue_description=issue_description
     )
 
     # Use bot's zammad_group or default to "Users" 
@@ -509,10 +519,12 @@ def create_ticket_with_customer(bot, chat_id, user, bot_record, customer, phone_
             zammad_ticket_number=ticket_data.get('number'),
             priority=priority
         )
-        response_text = _("✅ Success! Your ticket has been created.\nTicket Number: {ticket_number}\nCustomer: {customer_name}\nPriority: {priority_text}").format(
+        issue_info = f"\nIssue Type: {issue_type}" if issue_type else ""
+        response_text = _("✅ Success! Your ticket has been created.\nTicket Number: {ticket_number}\nCustomer: {customer_name}\nPriority: {priority_text}{issue_info}").format(
             ticket_number=ticket_data.get('number'),
             customer_name=f"{getattr(bot_record.zammad_config, 'customer_prefix', 'AZS')}_{str(customer.first_name)} {getattr(bot_record.zammad_config, 'customer_last_name', '') or ''}",
-            priority_text=priority_text.get(priority, "Medium")
+            priority_text=priority_text.get(priority, "Medium"),
+            issue_info=issue_info
         )
     else:
         response_text = _("❌ Error! Could not create the ticket. Please check the server logs.")
@@ -520,12 +532,16 @@ def create_ticket_with_customer(bot, chat_id, user, bot_record, customer, phone_
     bot.send_message(chat_id=chat_id, text=response_text)
 
 
-def create_ticket_with_customer_and_answers(bot, chat_id, user, bot_record, customer, phone_number, priority, answers):
+def create_ticket_with_customer_and_answers(bot, chat_id, user, bot_record, customer, phone_number, priority, answers, issue_type=None):
     """Create ticket with customer, priority, and question answers"""
     priority_text = {1: "Low", 2: "Medium", 3: "High"}
     bot.send_message(chat_id=chat_id, text=_("Thank you! Creating your ticket. Please wait..."))
 
     ticket_title = _("New Ticket from Telegram User: {user_name}").format(user_name=user.first_name)
+    
+    issue_description = ""
+    if issue_type:
+        issue_description = f"\n**Issue Type:** {issue_type}"
     
     # Build ticket body with answers
     ticket_body = _(
@@ -535,7 +551,7 @@ def create_ticket_with_customer_and_answers(bot, chat_id, user, bot_record, cust
         "**Telegram User ID:** {user_id}\n"
         "**Phone Number:** {phone_number}\n"
         "**Selected Customer:** {customer_name}\n"
-        "**Priority:** {priority_text}\n\n"
+        "**Priority:** {priority_text}{issue_description}\n\n"
         "**Additional Information:**\n"
     ).format(
         full_name=f"{user.first_name} {user.last_name or ''}",
@@ -543,7 +559,8 @@ def create_ticket_with_customer_and_answers(bot, chat_id, user, bot_record, cust
         user_id=user.id,
         phone_number=phone_number,
         customer_name=f"{getattr(bot_record.zammad_config, 'customer_prefix', 'AZS')}_{str(customer.first_name)} {getattr(bot_record.zammad_config, 'customer_last_name', '') or ''}",
-        priority_text=priority_text.get(priority, "Medium")
+        priority_text=priority_text.get(priority, "Medium"),
+        issue_description=issue_description
     )
     
     # Add questions and answers
@@ -593,10 +610,12 @@ def create_ticket_with_customer_and_answers(bot, chat_id, user, bot_record, cust
                 except Exception as e:
                     print(f"Error adding photo attachment to ticket: {e}")
         
-        response_text = _("✅ Success! Your ticket has been created.\nTicket Number: {ticket_number}\nCustomer: {customer_name}\nPriority: {priority_text}").format(
+        issue_info = f"\nIssue Type: {issue_type}" if issue_type else ""
+        response_text = _("✅ Success! Your ticket has been created.\nTicket Number: {ticket_number}\nCustomer: {customer_name}\nPriority: {priority_text}{issue_info}").format(
             ticket_number=ticket_data.get('number'),
             customer_name=f"{getattr(bot_record.zammad_config, 'customer_prefix', 'AZS')}_{str(customer.first_name)} {getattr(bot_record.zammad_config, 'customer_last_name', '') or ''}",
-            priority_text=priority_text.get(priority, "Medium")
+            priority_text=priority_text.get(priority, "Medium"),
+            issue_info=issue_info
         )
     else:
         response_text = _("❌ Error! Could not create the ticket. Please check the server logs.")
@@ -864,7 +883,12 @@ def handle_callback_query(query, bot, bot_record):
     chat_id = query.message.chat.id
     message_id = query.message.message_id
 
-    # Handle priority selection
+    # Handle issue type selection
+    if query.data.startswith('issue_'):
+        handle_issue_type_selection_callback(query, bot, bot_record)
+        return
+    
+    # Handle priority selection (legacy support)
     if query.data.startswith('priority_'):
         handle_priority_selection_callback(query, bot, bot_record)
         return
@@ -973,6 +997,107 @@ def handle_priority_selection_callback(query, bot, bot_record):
         
     except (ValueError, IndexError) as e:
         print(f"Error handling priority selection: {e}")
+        bot.answer_callback_query(callback_query_id=query.id, text=_("Invalid selection"))
+        return
+
+
+def handle_issue_type_selection_callback(query, bot, bot_record):
+    """Handle issue type selection callback and create ticket"""
+    user = query.from_user
+    chat_id = query.message.chat.id
+    message_id = query.message.message_id
+    
+    # Parse callback data: issue_[type]_userid_botid
+    try:
+        parts = query.data.split('_')
+        if len(parts) < 4 or parts[0] != 'issue':
+            bot.answer_callback_query(callback_query_id=query.id, text=_("Invalid selection"))
+            return
+            
+        # Extract issue type and user/bot IDs
+        issue_type_parts = parts[1:-2]  # All parts between 'issue' and the last two (user_id, bot_id)
+        issue_type = '_'.join(issue_type_parts)
+        user_id = int(parts[-2])
+        bot_id = int(parts[-1])
+        
+        # Verify user and bot match
+        if user_id != user.id or bot_id != bot_record.id:
+            bot.answer_callback_query(callback_query_id=query.id, text=_("Invalid selection"))
+            return
+            
+        # Get pending ticket data from cache
+        from django.core.cache import cache
+        cache_key = f"pending_ticket_{user.id}_{bot_record.id}"
+        pending_data = cache.get(cache_key)
+        
+        if not pending_data or pending_data.get('step') != 'priority_selection':
+            bot.answer_callback_query(callback_query_id=query.id, text=_("Session expired. Please start again."))
+            bot.edit_message_text(
+                text=_("❌ Session expired. Please use /start to create a new ticket."),
+                chat_id=chat_id,
+                message_id=message_id
+            )
+            return
+            
+        # Map issue types to priorities and display names
+        issue_mapping = {
+            'ticket_mistake': {'priority': 1, 'display': 'Ticket mistake', 'priority_text': 'Low'},
+            'no_internet': {'priority': 1, 'display': 'No internet', 'priority_text': 'Low'},
+            'workplace_not_works': {'priority': 2, 'display': 'One workplace not works', 'priority_text': 'Medium'},
+            'fuel_pump_not_works': {'priority': 2, 'display': 'One fuel pump not works', 'priority_text': 'Medium'},
+            'gas_station_not_works': {'priority': 3, 'display': 'Gas station not works', 'priority_text': 'High'}
+        }
+        
+        if issue_type not in issue_mapping:
+            bot.answer_callback_query(callback_query_id=query.id, text=_("Invalid selection"))
+            return
+            
+        issue_info = issue_mapping[issue_type]
+        priority = issue_info['priority']
+        issue_display = issue_info['display']
+        priority_text = issue_info['priority_text']
+        
+        # Get customer from database
+        from .models import Customer
+        try:
+            customer = Customer.objects.get(id=pending_data['customer_id'])
+        except Customer.DoesNotExist:
+            bot.answer_callback_query(callback_query_id=query.id, text=_("Customer not found"))
+            return
+            
+        # Clear cache
+        cache.delete(cache_key)
+        
+        # Give feedback to user
+        bot.answer_callback_query(
+            callback_query_id=query.id, 
+            text=_("Issue selected: {issue}").format(issue=issue_display)
+        )
+        
+        # Edit message to show selection
+        bot.edit_message_text(
+            text=_("Issue Type: {issue} (Priority: {priority_text})").format(
+                issue=issue_display,
+                priority_text=priority_text
+            ),
+            chat_id=chat_id,
+            message_id=message_id
+        )
+        
+        # Start question flow or create ticket if no questions
+        start_question_flow(
+            bot,
+            chat_id,
+            user,
+            bot_record,
+            customer,
+            pending_data['phone_number'],
+            priority,
+            issue_display
+        )
+        
+    except (ValueError, IndexError) as e:
+        print(f"Error handling issue type selection: {e}")
         bot.answer_callback_query(callback_query_id=query.id, text=_("Invalid selection"))
         return
 
