@@ -350,19 +350,33 @@ def ask_current_question(bot, chat_id, user, bot_record, question, question_inde
     """Ask the current question"""
     total_questions = Question.objects.filter(is_active=True).count()
     
+    # Add type hint based on question type
+    type_hint = ""
+    if question.question_type == 'text':
+        type_hint = _("\n\n📝 Please provide a text answer.")
+    elif question.question_type == 'photo':
+        type_hint = _("\n\n📸 Please send a photo.")
+    elif question.question_type == 'choice':
+        type_hint = _("\n\n☑️ Please select from the options.")
+    
     bot.send_message(
         chat_id=chat_id,
-        text=_("Question {current}/{total}:\n\n{question_text}").format(
+        text=_("Question {current}/{total}:\n\n{question_text}{type_hint}").format(
             current=question_index + 1,
             total=total_questions,
-            question_text=question.question_text
+            question_text=question.question_text,
+            type_hint=type_hint
         )
     )
 
 
 def handle_question_answer(bot, message, user, bot_record):
     """Handle answer to current question"""
-    if not message.text or message.text.startswith('/'):
+    # Check if this is a valid answer (text or photo)
+    is_text_answer = message.text and not message.text.startswith('/')
+    is_photo_answer = bool(message.photo)
+    
+    if not (is_text_answer or is_photo_answer):
         return False
     
     from django.core.cache import cache
@@ -381,12 +395,38 @@ def handle_question_answer(bot, message, user, bot_record):
     
     current_question = questions[current_question_index]
     
+    # Validate answer type matches question type
+    if current_question.question_type == 'text' and not is_text_answer:
+        bot.send_message(
+            chat_id=message.chat.id,
+            text=_("❌ This question requires a text answer. Please provide text only.")
+        )
+        return True
+    elif current_question.question_type == 'photo' and not is_photo_answer:
+        bot.send_message(
+            chat_id=message.chat.id,
+            text=_("❌ This question requires a photo. Please send a photo.")
+        )
+        return True
+    
     # Store answer
     answers = pending_data.get('answers', {})
-    answers[f"q_{current_question.id}"] = {
-        'question': current_question.question_text,
-        'answer': message.text
-    }
+    
+    if is_text_answer:
+        answers[f"q_{current_question.id}"] = {
+            'question': current_question.question_text,
+            'answer': message.text
+        }
+    elif is_photo_answer:
+        # Handle photo answer
+        photo_file_id = message.photo[-1].file_id
+        photo_caption = message.caption if message.caption else "Photo attachment"
+        answers[f"q_{current_question.id}"] = {
+            'question': current_question.question_text,
+            'answer': f"[Photo: {photo_file_id}] {photo_caption}",
+            'photo_file_id': photo_file_id,
+            'caption': photo_caption
+        }
     
     # Move to next question or finish
     next_question_index = current_question_index + 1
@@ -522,6 +562,7 @@ def create_ticket_with_customer_and_answers(bot, chat_id, user, bot_record, cust
     )
 
     if ticket_data and ticket_data.get('id'):
+        # Create the ticket record
         OpenTicket.objects.create(
             telegram_id=user.id,
             bot=bot_record,
@@ -530,6 +571,28 @@ def create_ticket_with_customer_and_answers(bot, chat_id, user, bot_record, cust
             zammad_ticket_number=ticket_data.get('number'),
             priority=priority
         )
+        
+        # Add photo attachments from answers if any
+        ticket_id = ticket_data.get('id')
+        for answer_data in answers.values():
+            if 'photo_file_id' in answer_data:
+                try:
+                    # Download and attach the photo to the ticket
+                    photo_file_id = answer_data['photo_file_id']
+                    file = bot.get_file(photo_file_id)
+                    file_content = file.download_as_bytearray()
+                    caption = answer_data.get('caption', 'Photo attachment from question')
+                    
+                    zammad_api.add_attachment_to_ticket(
+                        ticket_id, 
+                        user.first_name, 
+                        file_content, 
+                        f"question_photo_{photo_file_id}.jpg", 
+                        caption
+                    )
+                except Exception as e:
+                    print(f"Error adding photo attachment to ticket: {e}")
+        
         response_text = _("✅ Success! Your ticket has been created.\nTicket Number: {ticket_number}\nCustomer: {customer_name}\nPriority: {priority_text}").format(
             ticket_number=ticket_data.get('number'),
             customer_name=f"{getattr(bot_record.zammad_config, 'customer_prefix', 'AZS')}_{str(customer.first_name)} {getattr(bot_record.zammad_config, 'customer_last_name', '') or ''}",

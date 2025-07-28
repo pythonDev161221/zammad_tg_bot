@@ -38,6 +38,7 @@ class Question(models.Model):
     QUESTION_TYPES = [
         ('text', 'Text Input'),
         ('choice', 'Multiple Choice'),
+        ('photo', 'Photo Required'),
     ]
     
     question_text = models.TextField()
