@@ -81,7 +81,7 @@ msgstr ""
 msgid ""
 "❌ No customers available. Please contact an administrator to add customers "
 "first."
-msgstr "❌ Кардарлар жок. Алгач кардарларды кошуу үчүн администраторго кайрылыңыз."
+msgstr "❌ Кардарлар жок. Кардарларды кошуу үчүн администраторго кайрылыңыз."
 
 #: zammad_tg_bot/chatbot/views.py:220
 #, python-brace-format
@@ -98,15 +98,15 @@ msgstr "Интернет жок"
 
 #: zammad_tg_bot/chatbot/views.py:242
 msgid "One workplace not works"
-msgstr "Бир иш орду иштебейт"
+msgstr "Бир касса иштебейатат"
 
 #: zammad_tg_bot/chatbot/views.py:243
 msgid "One fuel pump not works"
-msgstr "Бир майлуу станция иштебейт"
+msgstr "Бир ТРК иштебейатат"
 
 #: zammad_tg_bot/chatbot/views.py:244
 msgid "Gas station not works"
-msgstr "Газ станциясы иштебейт"
+msgstr "АЗС иштебейатат"
 
 #: zammad_tg_bot/chatbot/views.py:250
 msgid "Please select the type of issue you are experiencing:"
@@ -125,7 +125,7 @@ msgstr "❌ {customer_prefix}{customer_number} кардар номери таб�
 
 #: zammad_tg_bot/chatbot/views.py:317
 msgid "❌ Error finding customer. Please try again."
-msgstr "❌ Кардарды издөөдө ката. Дагы аракет кылыңыз."
+msgstr "❌ Кардарды издөөдө катасы. Дагы аракет кылыңыз."
 
 #: zammad_tg_bot/chatbot/views.py:359
 msgid ""
