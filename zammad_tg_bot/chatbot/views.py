@@ -473,7 +473,7 @@ def handle_question_answer(bot, message, user, bot_record):
 
 def create_ticket_with_customer(bot, chat_id, user, bot_record, customer, phone_number, priority=2, issue_type=None):
     """Create ticket with the selected customer and priority"""
-    priority_text = {1: "Low", 2: "Medium", 3: "High"}
+    priority_text = {1: _("Low"), 2: _("Medium"), 3: _("High")}
     bot.send_message(chat_id=chat_id, text=_("Thank you! Creating your ticket. Please wait..."))
 
     ticket_title = _("New Ticket from Telegram User: {user_name}").format(user_name=user.first_name)
@@ -496,7 +496,7 @@ def create_ticket_with_customer(bot, chat_id, user, bot_record, customer, phone_
         user_id=user.id,
         phone_number=phone_number,
         customer_name=f"{getattr(bot_record.zammad_config, 'customer_prefix', 'AZS')}_{str(customer.first_name)} {getattr(bot_record.zammad_config, 'customer_last_name', '') or ''}",
-        priority_text=priority_text.get(priority, "Medium"),
+        priority_text=priority_text.get(priority, _("Medium")),
         issue_description=issue_description
     )
 
@@ -521,10 +521,9 @@ def create_ticket_with_customer(bot, chat_id, user, bot_record, customer, phone_
             priority=priority
         )
         issue_info = f"\nIssue Type: {issue_type}" if issue_type else ""
-        response_text = _("✅ Success! Your ticket has been created.\nTicket Number: {ticket_number}\nCustomer: {customer_name}\nPriority: {priority_text}{issue_info}").format(
+        response_text = _("✅ Success! Your ticket has been created.\nTicket Number: {ticket_number}\nCustomer: {customer_name}{issue_info}").format(
             ticket_number=ticket_data.get('number'),
             customer_name=f"{getattr(bot_record.zammad_config, 'customer_prefix', 'AZS')}_{str(customer.first_name)} {getattr(bot_record.zammad_config, 'customer_last_name', '') or ''}",
-            priority_text=priority_text.get(priority, "Medium"),
             issue_info=issue_info
         )
     else:
@@ -535,7 +534,7 @@ def create_ticket_with_customer(bot, chat_id, user, bot_record, customer, phone_
 
 def create_ticket_with_customer_and_answers(bot, chat_id, user, bot_record, customer, phone_number, priority, answers, issue_type=None):
     """Create ticket with customer, priority, and question answers"""
-    priority_text = {1: "Low", 2: "Medium", 3: "High"}
+    priority_text = {1: _("Low"), 2: _("Medium"), 3: _("High")}
     bot.send_message(chat_id=chat_id, text=_("Thank you! Creating your ticket. Please wait..."))
 
     ticket_title = _("New Ticket from Telegram User: {user_name}").format(user_name=user.first_name)
@@ -560,7 +559,7 @@ def create_ticket_with_customer_and_answers(bot, chat_id, user, bot_record, cust
         user_id=user.id,
         phone_number=phone_number,
         customer_name=f"{getattr(bot_record.zammad_config, 'customer_prefix', 'AZS')}_{str(customer.first_name)} {getattr(bot_record.zammad_config, 'customer_last_name', '') or ''}",
-        priority_text=priority_text.get(priority, "Medium"),
+        priority_text=priority_text.get(priority, _("Medium")),
         issue_description=issue_description
     )
     
@@ -612,10 +611,9 @@ def create_ticket_with_customer_and_answers(bot, chat_id, user, bot_record, cust
                     print(f"Error adding photo attachment to ticket: {e}")
         
         issue_info = f"\nIssue Type: {issue_type}" if issue_type else ""
-        response_text = _("✅ Success! Your ticket has been created.\nTicket Number: {ticket_number}\nCustomer: {customer_name}\nPriority: {priority_text}{issue_info}").format(
+        response_text = _("✅ Success! Your ticket has been created.\nTicket Number: {ticket_number}\nCustomer: {customer_name}{issue_info}").format(
             ticket_number=ticket_data.get('number'),
             customer_name=f"{getattr(bot_record.zammad_config, 'customer_prefix', 'AZS')}_{str(customer.first_name)} {getattr(bot_record.zammad_config, 'customer_last_name', '') or ''}",
-            priority_text=priority_text.get(priority, "Medium"),
             issue_info=issue_info
         )
     else:
@@ -969,18 +967,14 @@ def handle_priority_selection_callback(query, bot, bot_record):
         cache.delete(cache_key)
         
         # Give feedback to user
-        priority_text = {1: "Low", 2: "Medium", 3: "High"}
         bot.answer_callback_query(
             callback_query_id=query.id, 
-            text=_("Priority selected: {priority}").format(priority=priority_text.get(priority, "Medium"))
+            text=_("Priority selected")
         )
         
         # Edit message to show selection
         bot.edit_message_text(
-            text=_("Priority selected: Level {priority} ({priority_text})").format(
-                priority=priority,
-                priority_text=priority_text.get(priority, "Medium")
-            ),
+            text=_("Priority selected"),
             chat_id=chat_id,
             message_id=message_id
         )
@@ -1042,12 +1036,12 @@ def handle_issue_type_selection_callback(query, bot, bot_record):
             
         # Map issue types to priorities and display names
         issue_mapping = {
-            'ticket_mistake': {'priority': 1, 'display': 'Ticket mistake', 'priority_text': 'Low'},
-            'no_internet': {'priority': 1, 'display': 'No internet', 'priority_text': 'Low'},
-            'email_not_working': {'priority': 1, 'display': 'My email isn\'t working', 'priority_text': 'Low'},
-            'workplace_not_works': {'priority': 2, 'display': 'One workplace not works', 'priority_text': 'Medium'},
-            'fuel_pump_not_works': {'priority': 2, 'display': 'One fuel pump not works', 'priority_text': 'Medium'},
-            'gas_station_not_works': {'priority': 3, 'display': 'Gas station not works', 'priority_text': 'High'}
+            'ticket_mistake': {'priority': 1, 'display': 'Ticket mistake', 'priority_text': _("Low")},
+            'no_internet': {'priority': 1, 'display': 'No internet', 'priority_text': _("Low")},
+            'email_not_working': {'priority': 1, 'display': 'My email isn\'t working', 'priority_text': _("Low")},
+            'workplace_not_works': {'priority': 2, 'display': 'One workplace not works', 'priority_text': _("Medium")},
+            'fuel_pump_not_works': {'priority': 2, 'display': 'One fuel pump not works', 'priority_text': _("Medium")},
+            'gas_station_not_works': {'priority': 3, 'display': 'Gas station not works', 'priority_text': _("High")}
         }
         
         if issue_type not in issue_mapping:
@@ -1078,9 +1072,8 @@ def handle_issue_type_selection_callback(query, bot, bot_record):
         
         # Edit message to show selection
         bot.edit_message_text(
-            text=_("Issue Type: {issue} (Priority: {priority_text})").format(
-                issue=issue_display,
-                priority_text=priority_text
+            text=_("Issue Type: {issue}").format(
+                issue=issue_display
             ),
             chat_id=chat_id,
             message_id=message_id
