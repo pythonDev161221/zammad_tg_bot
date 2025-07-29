@@ -90,7 +90,7 @@ msgstr "Сиздин {customer_prefix} номериңизди тандаңыз?"
 
 #: zammad_tg_bot/chatbot/views.py:240
 msgid "Ticket mistake"
-msgstr "Тикеттеги ката"
+msgstr "Чектин катасы"
 
 #: zammad_tg_bot/chatbot/views.py:241
 msgid "No internet"
