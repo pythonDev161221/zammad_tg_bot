@@ -132,7 +132,7 @@ msgid ""
 "\n"
 "\n"
 "📝 Please provide a text answer."
-msgstr "\n\n📝 Тексттик жооп бериңиз."
+msgstr "\n\n📝 Жооп жазыңыз."
 
 #: zammad_tg_bot/chatbot/views.py:361
 msgid ""
