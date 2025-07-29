@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Zammad Telegram Bot\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-07-29 04:55+0000\n"
+"POT-Creation-Date: 2025-07-29 07:05+0000\n"
 "PO-Revision-Date: 2025-07-14 05:30+0000\n"
 "Last-Translator: Claude <noreply@anthropic.com>\n"
 "Language-Team: Kyrgyz\n"
@@ -17,27 +17,27 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 
-#: zammad_tg_bot/chatbot/views.py:101
+#: chatbot/views.py:101
 msgid "Adding your note to the ticket..."
 msgstr "Тикетке эскертүүңүздү кошуу..."
 
-#: zammad_tg_bot/chatbot/views.py:106
+#: chatbot/views.py:106
 msgid "Uploading your photo..."
 msgstr "Сүрөтүңүздү жүктөө..."
 
-#: zammad_tg_bot/chatbot/views.py:117
+#: chatbot/views.py:117
 msgid "✅ Successfully updated your ticket."
 msgstr "✅ Тикетиңиз ийгиликтүү жаңыртылды."
 
-#: zammad_tg_bot/chatbot/views.py:120
+#: chatbot/views.py:120
 msgid "❌ Sorry, there was an error updating your ticket."
 msgstr "❌ Кечиресиз, тикетиңизди жаңыртууда ката болду."
 
-#: zammad_tg_bot/chatbot/views.py:132
+#: chatbot/views.py:132
 msgid "Create New Ticket 📝"
 msgstr "Жаңы тикет түзүү 📝"
 
-#: zammad_tg_bot/chatbot/views.py:138
+#: chatbot/views.py:138
 msgid ""
 "Welcome! To create a ticket, please share your contact information by "
 "clicking the button below."
@@ -45,7 +45,7 @@ msgstr ""
 "Кош келиңиз! Тикет түзүү үчүн, төмөндөгү баскычты басып, байланыш "
 "маалыматыңызды бөлүшүңүз."
 
-#: zammad_tg_bot/chatbot/views.py:148
+#: chatbot/views.py:148
 #, fuzzy, python-brace-format
 #| msgid ""
 #| "You have an open ticket: **#{ticket_number}**.\n"
@@ -65,11 +65,11 @@ msgstr ""
 "жөнөтүп, эскертүүлөрдү же сүрөттөрдү кошо аласыз. Ошондой эле аны төмөндө "
 "жокко чыгара аласыз."
 
-#: zammad_tg_bot/chatbot/views.py:158
+#: chatbot/views.py:158
 msgid "You do not have any open tickets. Use /start to create one."
 msgstr "Сизде ачык тикеттер жок. Жаңысын түзүү үчүн /start колдонуңуз."
 
-#: zammad_tg_bot/chatbot/views.py:175
+#: chatbot/views.py:175
 #, python-brace-format
 msgid ""
 "❌ You already have an open ticket: #{ticket_number}. Please wait for it to "
@@ -77,107 +77,125 @@ msgid ""
 msgstr ""
 "❌ Сизде буга чейин ачык тикет бар: #{ticket_number}. Аны чечилишин күтүңүз."
 
-#: zammad_tg_bot/chatbot/views.py:200
+#: chatbot/views.py:200
 msgid ""
 "❌ No customers available. Please contact an administrator to add customers "
 "first."
 msgstr "❌ Кардарлар жок. Кардарларды кошуу үчүн администраторго кайрылыңыз."
 
-#: zammad_tg_bot/chatbot/views.py:220
+#: chatbot/views.py:220
 #, python-brace-format
 msgid "Choose the number of you {customer_prefix}?"
 msgstr "Сиздин {customer_prefix} номериңизди тандаңыз?"
 
-#: zammad_tg_bot/chatbot/views.py:240
+#: chatbot/views.py:240
 msgid "Ticket mistake"
 msgstr "Чектин катасы"
 
-#: zammad_tg_bot/chatbot/views.py:241
+#: chatbot/views.py:241
 msgid "No internet"
 msgstr "Интернет жок"
 
-#: zammad_tg_bot/chatbot/views.py:242
+#: chatbot/views.py:242
+msgid "My email isn't working"
+msgstr "Почта иштебейатат"
+
+#: chatbot/views.py:243
 msgid "One workplace not works"
 msgstr "Бир касса иштебейатат"
 
-#: zammad_tg_bot/chatbot/views.py:243
+#: chatbot/views.py:244
 msgid "One fuel pump not works"
 msgstr "Бир ТРК иштебейатат"
 
-#: zammad_tg_bot/chatbot/views.py:244
+#: chatbot/views.py:245
 msgid "Gas station not works"
 msgstr "АЗС иштебейатат"
 
-#: zammad_tg_bot/chatbot/views.py:250
+#: chatbot/views.py:251
 msgid "Please select the type of issue you are experiencing:"
 msgstr "Сизде болуп жаткан көйгөйдүн түрүн тандаңыз:"
 
-#: zammad_tg_bot/chatbot/views.py:296
+#: chatbot/views.py:297
 msgid "❌ Please enter a valid customer number (digits only)."
 msgstr "❌ Туура кардар номерин киргизиңиз (сандар гана)."
 
-#: zammad_tg_bot/chatbot/views.py:306
+#: chatbot/views.py:307
 #, python-brace-format
 msgid ""
 "❌ Customer number {customer_prefix}{customer_number} not found. Please try "
 "again."
-msgstr "❌ {customer_prefix}{customer_number} кардар номери табылган жок. Дагы аракет кылыңыз."
+msgstr ""
+"❌ {customer_prefix}{customer_number} кардар номери табылган жок. Дагы "
+"аракет кылыңыз."
 
-#: zammad_tg_bot/chatbot/views.py:317
+#: chatbot/views.py:318
 msgid "❌ Error finding customer. Please try again."
 msgstr "❌ Кардарды издөөдө катасы. Дагы аракет кылыңыз."
 
-#: zammad_tg_bot/chatbot/views.py:359
+#: chatbot/views.py:360
 msgid ""
 "\n"
 "\n"
 "📝 Please provide a text answer."
-msgstr "\n\n📝 Жооп жазыңыз."
+msgstr ""
+"\n"
+"\n"
+"📝 Жооп жазыңыз."
 
-#: zammad_tg_bot/chatbot/views.py:361
+#: chatbot/views.py:362
 msgid ""
 "\n"
 "\n"
 "📸 Please send a photo."
-msgstr "\n\n📸 Сүрөт жөнөтүңүз."
+msgstr ""
+"\n"
+"\n"
+"📸 Сүрөт жөнөтүңүз."
 
-#: zammad_tg_bot/chatbot/views.py:363
+#: chatbot/views.py:364
 msgid ""
 "\n"
 "\n"
 "☑️ Please select from the options."
-msgstr "\n\n☑️ Вариантардан тандаңыз."
+msgstr ""
+"\n"
+"\n"
+"☑️ Вариантардан тандаңыз."
 
-#: zammad_tg_bot/chatbot/views.py:367
+#: chatbot/views.py:368
 #, python-brace-format
 msgid ""
 "Question {current}/{total}:\n"
 "\n"
 "{question_text}{type_hint}"
-msgstr "Суроо {current}/{total}:\n\n{question_text}{type_hint}"
+msgstr ""
+"Суроо {current}/{total}:\n"
+"\n"
+"{question_text}{type_hint}"
 
-#: zammad_tg_bot/chatbot/views.py:405
+#: chatbot/views.py:406
 msgid "❌ This question requires a text answer. Please provide text only."
 msgstr "❌ Бул суроо тексттик жооп талап кылат. Текст гана бериңиз."
 
-#: zammad_tg_bot/chatbot/views.py:411
+#: chatbot/views.py:412
 msgid "❌ This question requires a photo. Please send a photo."
 msgstr "❌ Бул суроо сүрөт талап кылат. Сүрөт жөнөтүңүз."
 
-#: zammad_tg_bot/chatbot/views.py:458
+#: chatbot/views.py:459
 msgid "❌ Error: Customer not found. Please start again."
 msgstr "❌ Ката: Кардар табылган жок. Кайра баштаңыз."
 
-#: zammad_tg_bot/chatbot/views.py:476 zammad_tg_bot/chatbot/views.py:538
+#: chatbot/views.py:477 chatbot/views.py:539
 msgid "Thank you! Creating your ticket. Please wait..."
 msgstr "Рахмат! Тикетиңизди түзүп жатабыз. Күтүңүз..."
 
-#: zammad_tg_bot/chatbot/views.py:478 zammad_tg_bot/chatbot/views.py:540
+#: chatbot/views.py:479 chatbot/views.py:541
 #, python-brace-format
 msgid "New Ticket from Telegram User: {user_name}"
 msgstr "Telegram колдонуучусунан жаңы тикет: {user_name}"
 
-#: zammad_tg_bot/chatbot/views.py:485
+#: chatbot/views.py:486
 #, fuzzy, python-brace-format
 #| msgid ""
 #| "A new ticket was requested by Telegram user:\n"
@@ -205,7 +223,7 @@ msgstr ""
 "**Тандалган кардар:** {customer_name}\n"
 "**Приоритет:** {priority_text}{issue_description}"
 
-#: zammad_tg_bot/chatbot/views.py:523 zammad_tg_bot/chatbot/views.py:614
+#: chatbot/views.py:524 chatbot/views.py:615
 #, fuzzy, python-brace-format
 #| msgid ""
 #| "✅ Success! Your ticket has been created.\n"
@@ -221,11 +239,11 @@ msgstr ""
 "Кардар: {customer_name}\n"
 "Приоритет: {priority_text}{issue_info}"
 
-#: zammad_tg_bot/chatbot/views.py:530 zammad_tg_bot/chatbot/views.py:621
+#: chatbot/views.py:531 chatbot/views.py:622
 msgid "❌ Error! Could not create the ticket. Please check the server logs."
 msgstr "❌ Ката! Тикетти түзө алган жок. Сервер логдорун текшериңиз."
 
-#: zammad_tg_bot/chatbot/views.py:548
+#: chatbot/views.py:549
 #, fuzzy, python-brace-format
 #| msgid ""
 #| "A new ticket was requested by Telegram user:\n"
@@ -257,15 +275,15 @@ msgstr ""
 "\n"
 "**Кошумча маалымат:**\n"
 
-#: zammad_tg_bot/chatbot/views.py:657 zammad_tg_bot/chatbot/views.py:667
+#: chatbot/views.py:658 chatbot/views.py:668
 msgid "I'm sorry, I don't understand. Please use /start to create a ticket."
 msgstr "Кечиресиз, түшүнгөн жокмун. Тикет түзүү үчүн /start колдонуңуз."
 
-#: zammad_tg_bot/chatbot/views.py:736
+#: chatbot/views.py:737
 msgid "✅ Your ticket has been resolved and closed by our support team."
 msgstr "✅ Тикетиңиз колдоо тобубуз тарабынан чечилди жана жабылды."
 
-#: zammad_tg_bot/chatbot/views.py:787
+#: chatbot/views.py:788
 #, python-brace-format
 msgid ""
 "💬 **Support Agent Response:**\n"
@@ -276,21 +294,20 @@ msgstr ""
 "\n"
 "{message_text}"
 
-#: zammad_tg_bot/chatbot/views.py:799 zammad_tg_bot/chatbot/views.py:807
-#: zammad_tg_bot/chatbot/views.py:817
+#: chatbot/views.py:800 chatbot/views.py:808 chatbot/views.py:818
 #, python-brace-format
 msgid "📎 Agent sent: {filename}"
 msgstr "📎 Агент жөнөттү: {filename}"
 
-#: zammad_tg_bot/chatbot/views.py:904
+#: chatbot/views.py:905
 msgid "Processing your cancellation..."
 msgstr "Жокко чыгарууну иштетүү..."
 
-#: zammad_tg_bot/chatbot/views.py:915
+#: chatbot/views.py:916
 msgid "✅ Your ticket has been successfully canceled."
 msgstr "✅ Тикетиңиз ийгиликтүү жокко чыгарылды."
 
-#: zammad_tg_bot/chatbot/views.py:917
+#: chatbot/views.py:918
 msgid ""
 "❌ There was an error canceling your ticket in Zammad. Please contact an "
 "administrator."
@@ -298,43 +315,42 @@ msgstr ""
 "❌ Zammad'да тикетиңизди жокко чыгарууда ката болду. Администраторго "
 "кайрылыңыз."
 
-#: zammad_tg_bot/chatbot/views.py:933 zammad_tg_bot/chatbot/views.py:942
-#: zammad_tg_bot/chatbot/views.py:1000 zammad_tg_bot/chatbot/views.py:1014
-#: zammad_tg_bot/chatbot/views.py:1025 zammad_tg_bot/chatbot/views.py:1052
-#: zammad_tg_bot/chatbot/views.py:1101
+#: chatbot/views.py:934 chatbot/views.py:943 chatbot/views.py:1001
+#: chatbot/views.py:1015 chatbot/views.py:1026 chatbot/views.py:1054
+#: chatbot/views.py:1103
 msgid "Invalid selection"
 msgstr "Туура эмес тандоо"
 
-#: zammad_tg_bot/chatbot/views.py:951 zammad_tg_bot/chatbot/views.py:1034
+#: chatbot/views.py:952 chatbot/views.py:1035
 msgid "Session expired. Please start again."
 msgstr "Сессиянын убактысы бүттү. Кайра баштаңыз."
 
-#: zammad_tg_bot/chatbot/views.py:953 zammad_tg_bot/chatbot/views.py:1036
+#: chatbot/views.py:954 chatbot/views.py:1037
 #, fuzzy
 #| msgid "I'm sorry, I don't understand. Please use /start to create a ticket."
 msgid "❌ Session expired. Please use /start to create a new ticket."
 msgstr "❌ Сессиянын убактысы бүттү. Жаңы тикет түзүү үчүн /start колдонуңуз."
 
-#: zammad_tg_bot/chatbot/views.py:964 zammad_tg_bot/chatbot/views.py:1065
+#: chatbot/views.py:965 chatbot/views.py:1067
 msgid "Customer not found"
 msgstr "Кардар табылган жок"
 
-#: zammad_tg_bot/chatbot/views.py:974
+#: chatbot/views.py:975
 #, python-brace-format
 msgid "Priority selected: {priority}"
 msgstr "Тандалган приоритет: {priority}"
 
-#: zammad_tg_bot/chatbot/views.py:979
+#: chatbot/views.py:980
 #, python-brace-format
 msgid "Priority selected: Level {priority} ({priority_text})"
 msgstr "Тандалган приоритет: Деңгээл {priority} ({priority_text})"
 
-#: zammad_tg_bot/chatbot/views.py:1074
+#: chatbot/views.py:1076
 #, python-brace-format
 msgid "Issue selected: {issue}"
 msgstr "Тандалган маселе: {issue}"
 
-#: zammad_tg_bot/chatbot/views.py:1079
+#: chatbot/views.py:1081
 #, python-brace-format
 msgid "Issue Type: {issue} (Priority: {priority_text})"
 msgstr "Маселе түрү: {issue} (Приоритет: {priority_text})"
