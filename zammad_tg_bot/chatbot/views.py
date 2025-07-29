@@ -242,7 +242,8 @@ def show_priority_selection(bot, chat_id, user, bot_record, customer, phone_numb
         [telegram.InlineKeyboardButton(_("My email isn't working"), callback_data=f"issue_email_not_working_{user.id}_{bot_record.id}")],
         [telegram.InlineKeyboardButton(_("One workplace not works"), callback_data=f"issue_workplace_not_works_{user.id}_{bot_record.id}")],
         [telegram.InlineKeyboardButton(_("One fuel pump not works"), callback_data=f"issue_fuel_pump_not_works_{user.id}_{bot_record.id}")],
-        [telegram.InlineKeyboardButton(_("Gas station not works"), callback_data=f"issue_gas_station_not_works_{user.id}_{bot_record.id}")]
+        [telegram.InlineKeyboardButton(_("Gas station not works"), callback_data=f"issue_gas_station_not_works_{user.id}_{bot_record.id}")],
+        [telegram.InlineKeyboardButton(_("Everything works but has questions"), callback_data=f"issue_everything_works_but_has_questions_{user.id}_{bot_record.id}")]
     ]
     reply_markup = telegram.InlineKeyboardMarkup(keyboard)
     
@@ -1041,7 +1042,8 @@ def handle_issue_type_selection_callback(query, bot, bot_record):
             'email_not_working': {'priority': 1, 'display': 'My email isn\'t working', 'priority_text': _("Low")},
             'workplace_not_works': {'priority': 2, 'display': 'One workplace not works', 'priority_text': _("Medium")},
             'fuel_pump_not_works': {'priority': 2, 'display': 'One fuel pump not works', 'priority_text': _("Medium")},
-            'gas_station_not_works': {'priority': 3, 'display': 'Gas station not works', 'priority_text': _("High")}
+            'gas_station_not_works': {'priority': 3, 'display': 'Gas station not works', 'priority_text': _("High")},
+            'everything_works_but_has_questions': {'priority': 1, 'display': 'Everything works but has questions', 'priority_text': _("Low")}
         }
         
         if issue_type not in issue_mapping:
