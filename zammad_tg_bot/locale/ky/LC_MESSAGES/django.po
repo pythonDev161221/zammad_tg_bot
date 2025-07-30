@@ -145,7 +145,7 @@ msgid ""
 msgstr ""
 "\n"
 "\n"
-"📝 Жооп жазыңыз."
+"📝 Жазуу түрүндө."
 
 #: zammad_tg_bot/chatbot/views.py:363
 msgid ""
