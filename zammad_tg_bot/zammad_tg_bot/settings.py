@@ -11,6 +11,8 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 import os
 from pathlib import Path
+
+from django.template.defaultfilters import default
 from dotenv import load_dotenv
 import environ
 
@@ -44,6 +46,7 @@ ALLOWED_HOSTS = ['localhost',
 TELEGRAM_BOT_TOKENS = {
     'bot1': env('TELEGRAM_BOT_TOKEN', default=''),
     'bot2': env('TELEGRAM_BOT_TOKEN_2', default=''),
+    'bot3': env('TELEGRAM_BOT_TOKEN_3', default=''),
 }
 
 

@@ -1,0 +1,28 @@
+1. Edit the .po files directly in /home/ormon/Documents/projects/zammad_b
+  ot_110625/zammad_tg_bot/locale/[language]/LC_MESSAGES/django.po
+2. Compile translations using:
+  python manage.py compilemessages
+3. If you need to update/regenerate translation files from source code:
+  python manage.py makemessages -l en
+  python manage.py makemessages -l ru
+  python manage.py makemessages -l ky
+
+
+in simple just
+
+python manage.py makemessages
+python manage.py compilemessages
+
+
+
+General information to understand
+1. makemessages - extracts translatable strings from code and updates .po
+   files
+2. compilemessages - compiles .po files into .mo files that Django uses
+
+  If you're just editing existing translations in .po files, you only need
+  compilemessages.
+
+  If you've added new translatable strings to your code, run makemessages
+  first, then compilemessages.
+
