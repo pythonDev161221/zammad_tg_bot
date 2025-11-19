@@ -10,6 +10,7 @@ __pycache__/
 zammad_tg_bot/.env
 zammad_tg_bot/.env*
 *.env
+.claude/CLAUDE.local.md
 
 venv/
 .venv/
