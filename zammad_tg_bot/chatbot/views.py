@@ -368,7 +368,13 @@ def start_question_flow(bot, chat_id, user, bot_record, customer, phone_number, 
 def ask_current_question(bot, chat_id, user, bot_record, question, question_index):
     """Ask the current question"""
     total_questions = Question.objects.filter(is_active=True).count()
-    
+
+    # Get current language from bot
+    language = getattr(bot_record.zammad_config, 'preferable_language', 'ky')
+
+    # Get translated question text
+    question_text = question.get_text(language)
+
     # Add type hint based on question type
     type_hint = ""
     if question.question_type == 'text':
@@ -377,13 +383,13 @@ def ask_current_question(bot, chat_id, user, bot_record, question, question_inde
         type_hint = _("\n\n📸 Please send a photo.")
     elif question.question_type == 'choice':
         type_hint = _("\n\n☑️ Please select from the options.")
-    
+
     bot.send_message(
         chat_id=chat_id,
         text=_("Question {current}/{total}:\n\n{question_text}{type_hint}").format(
             current=question_index + 1,
             total=total_questions,
-            question_text=question.question_text,
+            question_text=question_text,
             type_hint=type_hint
         )
     )
@@ -430,10 +436,14 @@ def handle_question_answer(bot, message, user, bot_record):
     
     # Store answer
     answers = pending_data.get('answers', {})
-    
+
+    # Get current language for storing question text
+    language = getattr(bot_record.zammad_config, 'preferable_language', 'ky')
+    question_text = current_question.get_text(language)
+
     if is_text_answer:
         answers[f"q_{current_question.id}"] = {
-            'question': current_question.question_text,
+            'question': question_text,
             'answer': message.text
         }
     elif is_photo_answer:
@@ -441,7 +451,7 @@ def handle_question_answer(bot, message, user, bot_record):
         photo_file_id = message.photo[-1].file_id
         photo_caption = message.caption if message.caption else "Photo attachment"
         answers[f"q_{current_question.id}"] = {
-            'question': current_question.question_text,
+            'question': question_text,
             'answer': f"[Photo: {photo_file_id}] {photo_caption}",
             'photo_file_id': photo_file_id,
             'caption': photo_caption

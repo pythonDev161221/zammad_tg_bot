@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import TelegramBot, ZammadGroup, Customer, OpenTicket, Question
+from .models import TelegramBot, ZammadGroup, Customer, OpenTicket, Question, QuestionTranslation
 
 
 @admin.register(TelegramBot)
@@ -23,13 +23,26 @@ class CustomerAdmin(admin.ModelAdmin):
     search_fields = ('first_name',)
 
 
+class QuestionTranslationInline(admin.TabularInline):
+    model = QuestionTranslation
+    extra = 3  # Show 3 empty forms (for ky, ru, en)
+    max_num = 3  # Maximum 3 languages
+    fields = ('language', 'text')
+
+
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
-    list_display = ('order', 'question_text', 'question_type', 'is_active', 'created_at')
+    list_display = ('order', 'get_question_preview', 'question_type', 'is_active', 'created_at')
     list_filter = ('question_type', 'is_active')
-    search_fields = ('question_text',)
     readonly_fields = ('created_at',)
     ordering = ('order',)
+    inlines = [QuestionTranslationInline]
+
+    def get_question_preview(self, obj):
+        """Show Kyrgyz translation as preview"""
+        text = obj.get_text('ky')
+        return text[:50] + "..." if len(text) > 50 else text
+    get_question_preview.short_description = 'Question (Kyrgyz)'
 
 
 @admin.register(OpenTicket)

@@ -44,19 +44,51 @@ class Question(models.Model):
         ('choice', 'Multiple Choice'),
         ('photo', 'Photo Required'),
     ]
-    
-    question_text = models.TextField()
+
+    question_text = models.TextField()  # Will be removed in later migration
     question_type = models.CharField(max_length=10, choices=QUESTION_TYPES, default='text')
     order = models.IntegerField(default=0)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         ordering = ['order', 'created_at']
         unique_together = ['order']
-    
+
+    def get_text(self, language='ky'):
+        """Get question text in specified language with fallback"""
+        try:
+            translation = self.translations.get(language=language)
+            return translation.text
+        except QuestionTranslation.DoesNotExist:
+            # Fallback to Kyrgyz if translation not found
+            try:
+                return self.translations.get(language='ky').text
+            except QuestionTranslation.DoesNotExist:
+                # If no translations exist, fall back to old question_text field
+                return self.question_text if self.question_text else "Question text not available"
+
     def __str__(self):
-        return f"Q{self.order}: {self.question_text[:50]}..."
+        return f"Q{self.order}: {self.get_text('ky')[:50]}..."
+
+
+class QuestionTranslation(models.Model):
+    """Translations for questions in different languages"""
+    question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name='translations')
+    language = models.CharField(max_length=2, choices=[
+        ('ky', 'Кыргызча'),
+        ('ru', 'Русский'),
+        ('en', 'English'),
+    ])
+    text = models.TextField(verbose_name="Question Text")
+
+    class Meta:
+        unique_together = ['question', 'language']
+        verbose_name = "Question Translation"
+        verbose_name_plural = "Question Translations"
+
+    def __str__(self):
+        return f"{self.question.order} - {self.get_language_display()}: {self.text[:50]}"
 
 
 class OpenTicket(models.Model):
