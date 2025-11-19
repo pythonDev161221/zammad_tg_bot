@@ -1,82 +1,171 @@
-# SOME DESCRIPTIVE TITLE.
-# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
-# This file is distributed under the same license as the PACKAGE package.
-# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+# English translation for Zammad Telegram Bot
+# Copyright (C) 2025
+# This file is distributed under the same license as the package.
 #
-#, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: PACKAGE VERSION\n"
+"Project-Id-Version: Zammad Telegram Bot\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2025-07-14 05:29+0000\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
-"Language: \n"
+"PO-Revision-Date: 2025-11-19 12:00+0000\n"
+"Last-Translator: Claude <noreply@anthropic.com>\n"
+"Language-Team: English\n"
+"Language: en\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
-#: zammad_tg_bot/chatbot/views.py:100
+
+#: zammad_tg_bot/chatbot/views.py:101
 msgid "Adding your note to the ticket..."
-msgstr ""
+msgstr "Adding your note to the ticket..."
 
-#: zammad_tg_bot/chatbot/views.py:105
+#: zammad_tg_bot/chatbot/views.py:106
 msgid "Uploading your photo..."
-msgstr ""
+msgstr "Uploading your photo..."
 
-#: zammad_tg_bot/chatbot/views.py:116
+#: zammad_tg_bot/chatbot/views.py:117
 msgid "✅ Successfully updated your ticket."
-msgstr ""
+msgstr "✅ Successfully updated your ticket."
 
-#: zammad_tg_bot/chatbot/views.py:119
+#: zammad_tg_bot/chatbot/views.py:120
 msgid "❌ Sorry, there was an error updating your ticket."
-msgstr ""
+msgstr "❌ Sorry, there was an error updating your ticket."
 
-#: zammad_tg_bot/chatbot/views.py:131
+#: zammad_tg_bot/chatbot/views.py:132
 msgid "Create New Ticket 📝"
-msgstr ""
+msgstr "Create New Ticket 📝"
 
-#: zammad_tg_bot/chatbot/views.py:137
-msgid ""
-"Welcome! To create a ticket, please share your contact information by "
-"clicking the button below."
-msgstr ""
+#: zammad_tg_bot/chatbot/views.py:138
+msgid "Welcome! To create a ticket, please share your contact information by clicking the button below."
+msgstr "Welcome! To create a ticket, please share your contact information by clicking the button below."
 
 #: zammad_tg_bot/chatbot/views.py:148
-msgid "Cancel This Ticket ❌"
-msgstr ""
-
-#: zammad_tg_bot/chatbot/views.py:154
 #, python-brace-format
 msgid ""
 "You have an open ticket: **#{ticket_number}**.\n"
 "\n"
-"An agent will attend to it as soon as possible. You can add notes or photos "
-"by sending them directly to this chat. You can also cancel it below."
+"An agent will attend to it as soon as possible. You can add notes or photos by sending them directly to this chat."
 msgstr ""
+"You have an open ticket: **#{ticket_number}**.\n"
+"\n"
+"An agent will attend to it as soon as possible. You can add notes or photos by sending them directly to this chat."
 
-#: zammad_tg_bot/chatbot/views.py:165
+#: zammad_tg_bot/chatbot/views.py:158
 msgid "You do not have any open tickets. Use /start to create one."
-msgstr ""
+msgstr "You do not have any open tickets. Use /start to create one."
 
-#: zammad_tg_bot/chatbot/views.py:182
+#: zammad_tg_bot/chatbot/views.py:175
 #, python-brace-format
-msgid ""
-"❌ You already have an open ticket: #{ticket_number}. Please wait for it to "
-"be resolved."
-msgstr ""
+msgid "❌ You already have an open ticket: #{ticket_number}. Please wait for it to be resolved."
+msgstr "❌ You already have an open ticket: #{ticket_number}. Please wait for it to be resolved."
 
-#: zammad_tg_bot/chatbot/views.py:195
+#: zammad_tg_bot/chatbot/views.py:200
+msgid "❌ No customers available. Please contact an administrator to add customers first."
+msgstr "❌ No customers available. Please contact an administrator to add customers first."
+
+#: zammad_tg_bot/chatbot/views.py:220
+#, python-brace-format
+msgid "Choose the number of you {customer_prefix}?"
+msgstr "Choose the number of your {customer_prefix}?"
+
+#: zammad_tg_bot/chatbot/views.py:240
+msgid "Ticket mistake"
+msgstr "Ticket mistake"
+
+#: zammad_tg_bot/chatbot/views.py:241
+msgid "No internet"
+msgstr "No internet"
+
+#: zammad_tg_bot/chatbot/views.py:242
+msgid "My email isn't working"
+msgstr "My email isn't working"
+
+#: zammad_tg_bot/chatbot/views.py:243
+msgid "One workplace not works"
+msgstr "One workplace not working"
+
+#: zammad_tg_bot/chatbot/views.py:244
+msgid "One fuel pump not works"
+msgstr "One fuel pump not working"
+
+#: zammad_tg_bot/chatbot/views.py:245
+msgid "Gas station not works"
+msgstr "Gas station not working"
+
+#: zammad_tg_bot/chatbot/views.py:246
+msgid "Everything works but has questions"
+msgstr "Everything works but have questions"
+
+#: zammad_tg_bot/chatbot/views.py:252
+msgid "Please select the type of issue you are experiencing:"
+msgstr "Please select the type of issue you are experiencing:"
+
+#: zammad_tg_bot/chatbot/views.py:298
+msgid "❌ Please enter a valid customer number (digits only)."
+msgstr "❌ Please enter a valid customer number (digits only)."
+
+#: zammad_tg_bot/chatbot/views.py:308
+#, python-brace-format
+msgid "❌ Customer number {customer_prefix}{customer_number} not found. Please try again."
+msgstr "❌ Customer number {customer_prefix}{customer_number} not found. Please try again."
+
+#: zammad_tg_bot/chatbot/views.py:319
+msgid "❌ Error finding customer. Please try again."
+msgstr "❌ Error finding customer. Please try again."
+
+#: zammad_tg_bot/chatbot/views.py:361
+msgid "\n\n📝 Please provide a text answer."
+msgstr "\n\n📝 Please provide a text answer."
+
+#: zammad_tg_bot/chatbot/views.py:363
+msgid "\n\n📸 Please send a photo."
+msgstr "\n\n📸 Please send a photo."
+
+#: zammad_tg_bot/chatbot/views.py:365
+msgid "\n\n☑️ Please select from the options."
+msgstr "\n\n☑️ Please select from the options."
+
+#: zammad_tg_bot/chatbot/views.py:369
+#, python-brace-format
+msgid "Question {current}/{total}:\n\n{question_text}{type_hint}"
+msgstr "Question {current}/{total}:\n\n{question_text}{type_hint}"
+
+#: zammad_tg_bot/chatbot/views.py:407
+msgid "❌ This question requires a text answer. Please provide text only."
+msgstr "❌ This question requires a text answer. Please provide text only."
+
+#: zammad_tg_bot/chatbot/views.py:413
+msgid "❌ This question requires a photo. Please send a photo."
+msgstr "❌ This question requires a photo. Please send a photo."
+
+#: zammad_tg_bot/chatbot/views.py:460
+msgid "❌ Error: Customer not found. Please start again."
+msgstr "❌ Error: Customer not found. Please start again."
+
+#: zammad_tg_bot/chatbot/views.py:477 zammad_tg_bot/chatbot/views.py:538
+msgid "Low"
+msgstr "Low"
+
+#: zammad_tg_bot/chatbot/views.py:477 zammad_tg_bot/chatbot/views.py:500
+#: zammad_tg_bot/chatbot/views.py:538 zammad_tg_bot/chatbot/views.py:563
+msgid "Medium"
+msgstr "Medium"
+
+#: zammad_tg_bot/chatbot/views.py:477 zammad_tg_bot/chatbot/views.py:538
+msgid "High"
+msgstr "High"
+
+#: zammad_tg_bot/chatbot/views.py:478 zammad_tg_bot/chatbot/views.py:539
 msgid "Thank you! Creating your ticket. Please wait..."
-msgstr ""
+msgstr "Thank you! Creating your ticket. Please wait..."
 
-#: zammad_tg_bot/chatbot/views.py:197
+#: zammad_tg_bot/chatbot/views.py:480 zammad_tg_bot/chatbot/views.py:541
 #, python-brace-format
 msgid "New Ticket from Telegram User: {user_name}"
-msgstr ""
+msgstr "New Ticket from Telegram User: {user_name}"
 
-#: zammad_tg_bot/chatbot/views.py:199
+#: zammad_tg_bot/chatbot/views.py:487 zammad_tg_bot/chatbot/views.py:548
 #, python-brace-format
 msgid ""
 "A new ticket was requested by Telegram user:\n"
@@ -84,52 +173,89 @@ msgid ""
 "**Name:** {full_name}\n"
 "**Username:** @{username}\n"
 "**Telegram User ID:** {user_id}\n"
-"**Phone Number:** {phone_number}"
+"**Phone Number:** {phone_number}\n"
+"**Selected Customer:** {customer_name}\n"
+"**Priority:** {priority_text}{issue_description}"
 msgstr ""
-
-#: zammad_tg_bot/chatbot/views.py:222
-#, python-brace-format
-msgid ""
-"✅ Success! Your ticket has been created.\n"
-"Ticket Number: **{ticket_number}**"
-msgstr ""
-
-#: zammad_tg_bot/chatbot/views.py:224
-msgid "❌ Error! Could not create the ticket. Please check the server logs."
-msgstr ""
-
-#: zammad_tg_bot/chatbot/views.py:252 zammad_tg_bot/chatbot/views.py:262
-msgid "I'm sorry, I don't understand. Please use /start to create a ticket."
-msgstr ""
-
-#: zammad_tg_bot/chatbot/views.py:331
-msgid "✅ Your ticket has been resolved and closed by our support team."
-msgstr ""
-
-#: zammad_tg_bot/chatbot/views.py:382
-#, python-brace-format
-msgid ""
-"💬 **Support Agent Response:**\n"
+"A new ticket was requested by Telegram user:\n"
 "\n"
-"{message_text}"
-msgstr ""
+"**Name:** {full_name}\n"
+"**Username:** @{username}\n"
+"**Telegram User ID:** {user_id}\n"
+"**Phone Number:** {phone_number}\n"
+"**Selected Customer:** {customer_name}\n"
+"**Priority:** {priority_text}{issue_description}"
 
-#: zammad_tg_bot/chatbot/views.py:394 zammad_tg_bot/chatbot/views.py:402
-#: zammad_tg_bot/chatbot/views.py:412
+#: zammad_tg_bot/chatbot/views.py:525 zammad_tg_bot/chatbot/views.py:615
+#, python-brace-format
+msgid "✅ Success! Your ticket has been created.\nTicket Number: {ticket_number}\nCustomer: {customer_name}{issue_info}"
+msgstr "✅ Success! Your ticket has been created.\nTicket Number: {ticket_number}\nCustomer: {customer_name}{issue_info}"
+
+#: zammad_tg_bot/chatbot/views.py:531 zammad_tg_bot/chatbot/views.py:621
+msgid "❌ Error! Could not create the ticket. Please check the server logs."
+msgstr "❌ Error! Could not create the ticket. Please check the server logs."
+
+#: zammad_tg_bot/chatbot/views.py:656 zammad_tg_bot/chatbot/views.py:667
+msgid "I'm sorry, I don't understand. Please use /start to create a ticket."
+msgstr "I'm sorry, I don't understand. Please use /start to create a ticket."
+
+#: zammad_tg_bot/chatbot/views.py:755
+msgid "✅ Your ticket has been resolved and closed by our support team."
+msgstr "✅ Your ticket has been resolved and closed by our support team."
+
+#: zammad_tg_bot/chatbot/views.py:788
+#, python-brace-format
+msgid "💬 **Support Agent Response:**\n\n{message_text}"
+msgstr "💬 **Support Agent Response:**\n\n{message_text}"
+
+#: zammad_tg_bot/chatbot/views.py:799 zammad_tg_bot/chatbot/views.py:807
+#: zammad_tg_bot/chatbot/views.py:817
 #, python-brace-format
 msgid "📎 Agent sent: {filename}"
-msgstr ""
+msgstr "📎 Agent sent: {filename}"
 
-#: zammad_tg_bot/chatbot/views.py:484
+#: zammad_tg_bot/chatbot/views.py:904
 msgid "Processing your cancellation..."
-msgstr ""
+msgstr "Processing your cancellation..."
 
-#: zammad_tg_bot/chatbot/views.py:495
+#: zammad_tg_bot/chatbot/views.py:915
 msgid "✅ Your ticket has been successfully canceled."
-msgstr ""
+msgstr "✅ Your ticket has been successfully canceled."
 
-#: zammad_tg_bot/chatbot/views.py:497
-msgid ""
-"❌ There was an error canceling your ticket in Zammad. Please contact an "
-"administrator."
-msgstr ""
+#: zammad_tg_bot/chatbot/views.py:917
+msgid "❌ There was an error canceling your ticket in Zammad. Please contact an administrator."
+msgstr "❌ There was an error canceling your ticket in Zammad. Please contact an administrator."
+
+#: zammad_tg_bot/chatbot/views.py:933 zammad_tg_bot/chatbot/views.py:942
+#: zammad_tg_bot/chatbot/views.py:951 zammad_tg_bot/chatbot/views.py:973
+#: zammad_tg_bot/chatbot/views.py:1010 zammad_tg_bot/chatbot/views.py:1022
+#: zammad_tg_bot/chatbot/views.py:1050 zammad_tg_bot/chatbot/views.py:1063
+#: zammad_tg_bot/chatbot/views.py:1098
+msgid "Invalid selection"
+msgstr "Invalid selection"
+
+#: zammad_tg_bot/chatbot/views.py:952 zammad_tg_bot/chatbot/views.py:1031
+msgid "Session expired. Please start again."
+msgstr "Session expired. Please start again."
+
+#: zammad_tg_bot/chatbot/views.py:954 zammad_tg_bot/chatbot/views.py:1033
+msgid "❌ Session expired. Please use /start to create a new ticket."
+msgstr "❌ Session expired. Please use /start to create a new ticket."
+
+#: zammad_tg_bot/chatbot/views.py:964 zammad_tg_bot/chatbot/views.py:1063
+msgid "Customer not found"
+msgstr "Customer not found"
+
+#: zammad_tg_bot/chatbot/views.py:972 zammad_tg_bot/chatbot/views.py:977
+msgid "Priority selected"
+msgstr "Priority selected"
+
+#: zammad_tg_bot/chatbot/views.py:1072
+#, python-brace-format
+msgid "Issue selected: {issue}"
+msgstr "Issue selected: {issue}"
+
+#: zammad_tg_bot/chatbot/views.py:1077
+#, python-brace-format
+msgid "Issue Type: {issue}"
+msgstr "Issue Type: {issue}"

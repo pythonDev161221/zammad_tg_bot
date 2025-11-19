@@ -3,6 +3,7 @@ import os
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.translation import gettext as _
+from django.utils import translation
 import telegram
 from . import zammad_api
 from .models import OpenTicket, TelegramBot, Customer, Question
@@ -22,6 +23,16 @@ def get_telegram_bot_instance(token):
     """Get telegram.Bot instance for a token"""
     return telegram.Bot(token=token)
 
+def activate_bot_language(bot_record):
+    """Activate the language for this bot from ZammadGroup.preferable_language"""
+    if bot_record and hasattr(bot_record, 'zammad_config'):
+        language = getattr(bot_record.zammad_config, 'preferable_language', 'ky')
+    else:
+        language = 'ky'  # Default to Kyrgyz
+
+    translation.activate(language)
+    return language
+
 
 @csrf_exempt
 def telegram_webhook(request, bot_token):
@@ -34,14 +45,17 @@ def telegram_webhook(request, bot_token):
         bot_record = get_bot_by_token(bot_token)
         if not bot_record:
             return HttpResponseBadRequest("Invalid bot token")
-        
+
+        # Activate the language for this bot
+        activate_bot_language(bot_record)
+
         # Create bot instance for this specific token
         bot = get_telegram_bot_instance(bot_token)
-        
+
         # Process the webhook
         update_data = json.loads(request.body.decode('utf-8'))
         update = telegram.Update.de_json(update_data, bot)
-        
+
         if update.message:
             handle_message(update.message, bot, bot_record)
         elif update.callback_query:
@@ -729,6 +743,10 @@ class WebhookHandler:
         
         try:
             ticket_to_close = OpenTicket.objects.get(zammad_ticket_id=ticket_id)
+
+            # Activate the language for this bot
+            activate_bot_language(ticket_to_close.bot)
+
             # Get the bot instance for this ticket
             bot = get_telegram_bot_instance(ticket_to_close.bot.token)
             bot.send_message(
@@ -856,7 +874,10 @@ class AgentResponseHandler:
         try:
             # Find the ticket in our local DB
             open_ticket = OpenTicket.objects.get(zammad_ticket_id=ticket_id)
-            
+
+            # Activate the language for this bot
+            activate_bot_language(open_ticket.bot)
+
             # Create telegram handler for this specific bot
             telegram_handler = TelegramMessageHandler(open_ticket.bot.token)
             
