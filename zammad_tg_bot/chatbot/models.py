@@ -11,11 +11,15 @@ class TelegramBot(models.Model):
 
 
 class ZammadGroup(models.Model):
+
+    LANGUAGE_CHOISES = [("en", "English"),("ky", "Kyrgyz"),("ru", "Russian")]
+
     """Stores Zammad group configuration"""
     telegram_bot = models.OneToOneField(TelegramBot, on_delete=models.CASCADE, related_name='zammad_config')
     zammad_group = models.CharField(max_length=100, unique=True, null=True, blank=True)
     customer_last_name = models.CharField(max_length=100, blank=True, null=True)
     customer_prefix = models.CharField(max_length=64, default="AZS")
+    preferable_language = models.CharField(max_length=63, default="ky", choices=LANGUAGE_CHOISES)
     
     def __str__(self):
         return f"Zammad Config for {self.telegram_bot.name}"
