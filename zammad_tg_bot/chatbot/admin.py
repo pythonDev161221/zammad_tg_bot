@@ -45,6 +45,19 @@ class QuestionAdmin(admin.ModelAdmin):
     get_question_preview.short_description = 'Question (Kyrgyz)'
 
 
+@admin.register(QuestionTranslation)
+class QuestionTranslationAdmin(admin.ModelAdmin):
+    list_display = ('question', 'language', 'get_text_preview')
+    list_filter = ('language', 'question')
+    search_fields = ('text', 'question__order')
+    ordering = ('question__order', 'language')
+
+    def get_text_preview(self, obj):
+        """Show truncated text preview"""
+        return obj.text[:100] + "..." if len(obj.text) > 100 else obj.text
+    get_text_preview.short_description = 'Text Preview'
+
+
 @admin.register(OpenTicket)
 class OpenTicketAdmin(admin.ModelAdmin):
     list_display = ('telegram_id', 'bot', 'customer', 'zammad_ticket_number', 'priority', 'created_at')
