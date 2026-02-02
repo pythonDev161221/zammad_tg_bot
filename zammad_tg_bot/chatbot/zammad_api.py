@@ -93,19 +93,19 @@ class ZammadTicketManager(ZammadApiClient):
         """Create or get Zammad user based on customer name"""
         # Generate email based on names
         email = f"{first_name.lower()}.{last_name.lower()}@customer.local"
-        
-        # Try to find existing user by email
-        search_url = f"{self.zammad_url}/api/v1/users/search?query={email}"
+
+        # Try to find existing user by exact email match
+        search_url = f"{self.zammad_url}/api/v1/users/search?query=email:{email}"
         try:
             response = self.make_request('GET', search_url)
             search_results = self.handle_response(response, "searching for Zammad user")
-            
+
             if search_results and len(search_results) > 0:
                 print(f"Found existing Zammad user: {email}")
                 return search_results[0]
         except requests.exceptions.RequestException as e:
             print(f"Error searching for Zammad user: {e}")
-        
+
         # Create new Zammad user
         user_data = {
             "firstname": first_name,
@@ -114,7 +114,7 @@ class ZammadTicketManager(ZammadApiClient):
             "login": email,
             "roles": ["Customer"]
         }
-        
+
         create_url = f"{self.zammad_url}/api/v1/users"
         try:
             response = self.make_request('POST', create_url, user_data)
@@ -123,7 +123,27 @@ class ZammadTicketManager(ZammadApiClient):
             return user
         except requests.exceptions.RequestException as e:
             print(f"Error creating Zammad user: {e}")
+            # If user already exists (422 error), try to fetch by email
+            if "422" in str(e):
+                return self._fetch_user_by_email(email)
             return None
+
+    def _fetch_user_by_email(self, email):
+        """Fetch user by email when we know they exist"""
+        try:
+            # Try alternative search endpoint
+            search_url = f"{self.zammad_url}/api/v1/users?search={email}"
+            response = self.make_request('GET', search_url)
+            users = response.json()
+
+            # Find exact email match
+            for user in users:
+                if user.get('email', '').lower() == email.lower():
+                    print(f"Found existing Zammad user after 422: {email}")
+                    return user
+        except Exception as e:
+            print(f"Error fetching user by email: {e}")
+        return None
     
     def create_ticket(self, title, body, group="Users", customer_first_name=None, customer_last_name=None, priority=2):
         """Creates a new ticket in Zammad with customer as the user"""
